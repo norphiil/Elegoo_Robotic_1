@@ -1,4 +1,5 @@
 #include "devices.h"
+#include "Wire.h"
 
 // Change to 0 or comment this line out to switch off debug mode and hide Serial prints
 #define DEBUG_MODE 1
@@ -13,6 +14,10 @@ void Motor::init()
     pinMode(PIN_MOTOR_A_IN, OUTPUT);
     pinMode(PIN_MOTOR_B_IN, OUTPUT);
     pinMode(PIN_MOTOR_STBY, OUTPUT);
+
+    // Enable the gyroaccel
+    this->gyroaccel = GyroAccel();
+    this->gyroaccel.init();
 }
 
 uint8_t Motor::normaliseSpeed(uint8_t speed)
@@ -141,6 +146,101 @@ void Motor::stop()
     digitalWrite(PIN_MOTOR_STBY, LOW);
 }
 
+void Motor::turn(int16_t angle, uint8_t speed)
+{
+    int16_t current_angle = this->gyroaccel.getAngleX();
+    Direction current_rotate_direction;
+    if (angle > current_angle && angle - current_angle < 180)
+    {
+        current_rotate_direction = RIGHT;
+    }
+    else
+    {
+        current_rotate_direction = LEFT;
+    }
+
+    this->move(current_rotate_direction, speed);
+
+    while (current_angle != angle)
+    {
+        Direction old_current_rotate_direction = current_rotate_direction;
+        delay(100);
+        if (angle > current_angle && angle - current_angle < 180)
+        {
+            current_rotate_direction = RIGHT;
+        }
+        else
+        {
+            current_rotate_direction = LEFT;
+        }
+        if (current_rotate_direction != old_current_rotate_direction)
+        {
+            this->stop();
+            delay(100);
+            speed = speed / 2;
+            this->move(current_rotate_direction, speed);
+        }
+        current_angle = gyroaccel.getAngleX();
+    }
+}
+
+int16_t Motor::normalizeAngle(int16_t angle)
+{
+    angle = fmod(angle + 180.0, 360.0);
+    if (angle > 180.0)
+    {
+        angle -= 360.0;
+    }
+    return angle;
+}
+
+void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
+{
+    int16_t distance = current_pos.distanceTo(target_pos);
+    int16_t current_velocity = 0;
+    int16_t current_distance = 0;
+
+    bool go_forward = false;
+    uint8_t interval_time = 100;
+    uint16_t start_time = millis();
+
+    // Check the unit for distance in cm or mm or m ?
+    while (distance > 1)
+    {
+        delay(interval_time);
+        uint16_t end_time = millis();
+        uint16_t time_between = end_time - start_time;
+        int16_t result[2] = {};
+        result[2] = this->gyroaccel.getDistance(time_between, current_velocity, current_distance);
+        int16_t current_velocity = result[0];
+        int16_t current_distance = result[1];
+        distance = distance - current_distance;
+
+        // Need to check if getAngleX need to be normalized or not.
+        int16_t target_angle = current_pos.calculateTargetAngle(target_pos);
+        int16_t current_angle = this->normalizeAngle(this->gyroaccel.getAngleX());
+        if (abs(current_angle - target_angle) > 5)
+        {
+            if (go_forward)
+            {
+                this->stop();
+                go_forward = false;
+            }
+            this->turn(target_angle, speed);
+        }
+        else
+        {
+            if (!go_forward)
+            {
+                this->move(FORWARDS, speed);
+                go_forward = true;
+            }
+        }
+        start_time = end_time;
+    }
+    this->stop();
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////      ULTRASONIC     //////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -169,4 +269,150 @@ void Ultrasonic::test()
     Serial.print("ultrasonic_sensor_test=");
     Serial.print(distanceCm);
     Serial.println("cm");
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////      GYROSCOPE AND ACCELEROMETER      /////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+void GyroAccel::init()
+{
+    Wire.begin();
+    Wire.beginTransmission(PIN_GYRO);
+    Wire.write(0x6B);
+    Wire.write(0);
+    Wire.endTransmission(true);
+}
+
+int16_t GyroAccel::getAngleX()
+{
+    Wire.beginTransmission(PIN_GYRO);
+    Wire.write(0x3B);
+    Wire.endTransmission(false);
+    Wire.requestFrom(PIN_GYRO, 14, true);
+
+    int16_t GyX = Wire.read() << 8 | Wire.read(); // 0x43 (GYRO_XOUT_H) & 0x44 (GYRO_XOUT_L)
+    return GyX;
+}
+
+int16_t GyroAccel::getAcceleration()
+{
+    Wire.beginTransmission(PIN_GYRO);
+    Wire.write(0x3B);
+    Wire.endTransmission(false);
+    Wire.requestFrom(PIN_GYRO, 14, true);
+
+    int16_t AcX = Wire.read() << 8 | Wire.read(); // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)
+    int16_t AcY = Wire.read() << 8 | Wire.read(); // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
+    int16_t AcZ = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
+
+    int16_t acceleration[3] = {AcX, AcY, AcZ};
+
+    return acceleration;
+}
+
+int16_t
+GyroAccel::getDistance(int16_t intervaleTemps, int16_t velocity, int16_t distance)
+{
+    int16_t acceleration[3] = {};
+    acceleration[3] = this->getAcceleration();
+    int16_t AcX = acceleration[0];
+    int16_t AcY = acceleration[1];
+    int16_t AcZ = acceleration[2];
+
+    double nouvelleAcceleration = sqrt(AcX * AcX + AcY * AcY + AcZ * AcZ);
+
+    velocity += nouvelleAcceleration * intervaleTemps;
+
+    distance += velocity * intervaleTemps;
+    int16_t result[2] = {velocity, distance};
+    return result;
+}
+
+void GyroAccel::test()
+{
+    Wire.beginTransmission(PIN_GYRO);
+    Wire.write(0x3B);
+    Wire.endTransmission(false);
+    Wire.requestFrom(PIN_GYRO, 14, true);
+
+    int16_t AcX = Wire.read() << 8 | Wire.read(); // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)
+    int16_t AcY = Wire.read() << 8 | Wire.read(); // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
+    int16_t AcZ = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
+    int16_t Tmp = Wire.read() << 8 | Wire.read(); // 0x41 (TEMP_OUT_H) & 0x42 (TEMP_OUT_L)
+    int16_t GyX = Wire.read() << 8 | Wire.read(); // 0x43 (GYRO_XOUT_H) & 0x44 (GYRO_XOUT_L)
+    int16_t GyY = Wire.read() << 8 | Wire.read(); // 0x45 (GYRO_YOUT_H) & 0x46 (GYRO_YOUT_L)
+    int16_t GyZ = Wire.read() << 8 | Wire.read(); // 0x47 (GYRO_ZOUT_H) & 0x48 (GYRO_ZOUT_L)
+
+    Serial.print("accelerometer_x=");
+    Serial.println(AcX);
+    Serial.print("accelerometer_y=");
+    Serial.println(AcY);
+    Serial.print("accelerometer_z=");
+    Serial.println(AcZ);
+    Serial.print("temperature=");
+    Serial.println(Tmp / 340.00 + 36.53);
+    Serial.print("gyroscope_x=");
+    Serial.println(GyX);
+    Serial.print("gyroscope_y=");
+    Serial.println(GyY);
+    Serial.print("gyroscope_z=");
+    Serial.println(GyZ);
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////      TARGET      //////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Pos::init(double x, double y)
+{
+    this->x = x;
+    this->y = y;
+}
+
+double Pos::getX()
+{
+    return this->x;
+}
+
+double Pos::getY()
+{
+    return this->y;
+}
+
+int16_t Pos::distanceTo(Pos pos)
+{
+    double x_diff = pos.getX() - this->x;
+    double y_diff = pos.getY() - this->y;
+    return sqrt(x_diff * x_diff + y_diff * y_diff);
+}
+
+int16_t Pos::calculateTargetAngle(Pos pos)
+{
+    double x_diff = pos.getX() - this->x;
+    double y_diff = pos.getY() - this->y;
+    return atan2(y_diff, x_diff) * 180 / PI;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////      PATH      ////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Path::init(Pos path_list[10])
+{
+    for (int i = 0; i < 10; i++)
+    {
+        this->path_list[i] = *(path_list + i);
+    }
+}
+
+void Path::run(Motor motor, uint8_t speed)
+{
+    Pos current_pos = Pos();
+    current_pos.init(0, 0);
+    for (int i = 0; i < 10; i++)
+    {
+        motor.goToPoint(current_pos, this->path_list[i], speed);
+        current_pos = this->path_list[i];
+    }
+
+    Serial.println("Path completed!");
 }

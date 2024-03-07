@@ -12,6 +12,34 @@ enum Direction
     BACKWARDS_LEFT
 };
 
+class Pos
+{
+public:
+    void init(double x, double y);
+    double getX(void);
+    double getY(void);
+    int16_t distanceTo(Pos pos);
+    int16_t calculateTargetAngle(Pos pos);
+
+private:
+    double x,
+        y;
+};
+
+class GyroAccel
+{
+public:
+    void init(void);
+    int16_t getAngleX(void);
+    int16_t getDistance(int16_t intervalleTemps, int16_t velocity, int16_t distance);
+    void test(void);
+
+private:
+    int16_t
+    getAcceleration(void);
+#define PIN_GYRO 2
+};
+
 class Motor // TB6612
 {
 public:
@@ -26,7 +54,12 @@ public:
     void rightMotor(uint8_t direction, uint8_t speed);
     void leftMotor(uint8_t direction, uint8_t speed);
 
+    // One function to make the robot go to specific point
+    void goToPoint(Pos current_pos, Pos target_pos, uint8_t speed);
+
 private:
+    GyroAccel gyroaccel;
+
     // Clamps the input speed between the MIN_SPEED and MAX_SPEED
     uint8_t normaliseSpeed(uint8_t speed);
 
@@ -39,6 +72,8 @@ private:
     void forwardsLeft(uint8_t speed);
     void backwardsRight(uint8_t speed);
     void backwardsLeft(uint8_t speed);
+    int16_t normalizeAngle(int16_t angle);
+    void turn(int16_t angle_diff, uint8_t speed);
 
 #define PIN_MOTOR_A_PWM 5
 #define PIN_MOTOR_A_IN 7
@@ -59,11 +94,21 @@ public:
     void init(void);
     // test to get the distance every second
     void test(void);
-    void get(uint16_t *get);
+    // void get(uint16_t *get);
 
 private:
-    unsigned int microseconds_to_cm(unsigned int microseconds);
+    // unsigned int microseconds_to_cm(unsigned int microseconds);
 #define PIN_TRIG 13      // Pin responsible for the trigger pulse. LOW = prepare for pulse, HIGH = send pulse
 #define PIN_ECHO 12      // Pin which gives us the time until the echo pulse was received, HIGH = receive the value
 #define MAX_DISTANCE 400 // cm
+};
+
+class Path
+{
+public:
+    void init(Pos path_list[10]);
+    void run(Motor motor, uint8_t speed);
+
+private:
+    Pos path_list[10];
 };
