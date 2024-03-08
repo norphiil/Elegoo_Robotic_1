@@ -8,7 +8,7 @@ This robotics project utilizes the Elegoo Car Kit to create an intelligent and v
 
 - Cadet Florent
 - Thomas Koppens
-- (add your name)
+- Aleksandra Krzemień
 - (add your name)
 
 ## Objective
