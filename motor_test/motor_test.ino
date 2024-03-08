@@ -38,11 +38,11 @@ void setup()
   // motor.stop();
 
   Pos pos1;
-  pos1.init(1, 0);
+  pos1.init(10, 0);
   Pos pos2;
-  pos2.init(0, 1);
+  pos2.init(0, 10);
   Pos pos3;
-  pos3.init(1, 1);
+  pos3.init(10, 10);
   Pos pos4;
   pos4.init(0, 0);
 

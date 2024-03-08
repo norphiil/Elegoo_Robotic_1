@@ -285,22 +285,12 @@ void GyroAccel::init()
 
 int16_t GyroAccel::getAngleX()
 {
-    Wire.beginTransmission(PIN_GYRO);
-    Wire.write(0x3B);
-    Wire.endTransmission(false);
-    Wire.requestFrom(PIN_GYRO, 14, true);
-
     int16_t GyX = Wire.read() << 8 | Wire.read(); // 0x43 (GYRO_XOUT_H) & 0x44 (GYRO_XOUT_L)
     return GyX;
 }
 
 int16_t GyroAccel::getAcceleration()
 {
-    Wire.beginTransmission(PIN_GYRO);
-    Wire.write(0x3B);
-    Wire.endTransmission(false);
-    Wire.requestFrom(PIN_GYRO, 14, true);
-
     int16_t AcX = Wire.read() << 8 | Wire.read(); // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)
     int16_t AcY = Wire.read() << 8 | Wire.read(); // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
     int16_t AcZ = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
@@ -330,11 +320,6 @@ GyroAccel::getDistance(int16_t intervaleTemps, int16_t velocity, int16_t distanc
 
 void GyroAccel::test()
 {
-    Wire.beginTransmission(PIN_GYRO);
-    Wire.write(0x3B);
-    Wire.endTransmission(false);
-    Wire.requestFrom(PIN_GYRO, 14, true);
-
     int16_t AcX = Wire.read() << 8 | Wire.read(); // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)
     int16_t AcY = Wire.read() << 8 | Wire.read(); // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
     int16_t AcZ = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
