@@ -31,13 +31,20 @@ class GyroAccel
 public:
     void init(void);
     int16_t getAngleX(void);
-    int16_t getDistance(int16_t intervalleTemps, int16_t velocity, int16_t distance);
+    int16_t getAngleY(void);
+    int16_t getAngleZ(void);
+    int16_t getTemperature(void);
+    int16_t getAcceleration(void);
+    int16_t
+    getDistance(int16_t intervalleTemps, int16_t velocity, int16_t distance);
     void test(void);
 
 private:
-    int16_t
-    getAcceleration(void);
-#define PIN_GYRO 2
+    void readGyroAccel(void);
+    int16_t AcX,
+        AcY, AcZ, Tmp, GyX, GyY, GyZ;
+
+#define PIN_GYRO 0x68
 };
 
 class Motor // TB6612
@@ -74,6 +81,7 @@ private:
     void backwardsLeft(uint8_t speed);
     int16_t normalizeAngle(int16_t angle);
     void turn(int16_t angle_diff, uint8_t speed);
+    void straightLine(Direction direction, uint8_t speed);
 
 #define PIN_MOTOR_A_PWM 5
 #define PIN_MOTOR_A_IN 7

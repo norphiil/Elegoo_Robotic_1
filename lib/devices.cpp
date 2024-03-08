@@ -194,6 +194,63 @@ int16_t Motor::normalizeAngle(int16_t angle)
     return angle;
 }
 
+// int16_t Motor::getEulerAngles(float Yaw)
+// {
+//     int16_t gz = this->gyroaccel.getAngleZ();
+//     float gyroz = -(gz - gzo) / 131.0 * dt; // z轴角速度
+//     if (fabs(gyroz) < 0.05)
+//     {
+//         gyroz = 0.00;
+//     }
+//     agz += gyroz; // z轴角速度积分
+//     *Yaw = agz;
+// }
+
+void Motor::straightLine(Direction direction, uint8_t speed)
+{
+    static uint8_t UpperLimit = 255;
+    static float Yaw;
+    static float yaw_So = 0;
+    static uint8_t en = 110;
+    static unsigned long is_time;
+    if (millis() - is_time > 10)
+    {
+        this->stop();
+        Yaw = this->gyroaccel.getAngleZ();
+
+        is_time = millis();
+    }
+
+    int R = (Yaw - yaw_So) * 10 + speed;
+    if (R > UpperLimit)
+    {
+        R = UpperLimit;
+    }
+    else if (R < 10)
+    {
+        R = 10;
+    }
+    int L = (yaw_So - Yaw) * 10 + speed;
+    if (L > UpperLimit)
+    {
+        L = UpperLimit;
+    }
+    else if (L < 10)
+    {
+        L = 10;
+    }
+    if (direction == FORWARDS)
+    {
+        this->rightMotor(MOTOR_FORWARDS, R);
+        this->leftMotor(MOTOR_FORWARDS, L);
+    }
+    else if (direction == BACKWARDS)
+    {
+        this->rightMotor(MOTOR_BACKWARDS, L);
+        this->leftMotor(MOTOR_BACKWARDS, R);
+    }
+}
+
 void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
 {
     int16_t distance = current_pos.distanceTo(target_pos);
@@ -203,6 +260,8 @@ void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
     bool go_forward = false;
     uint8_t interval_time = 100;
     uint16_t start_time = millis();
+
+    this->turn(current_pos.calculateTargetAngle(target_pos), speed);
 
     // Check the unit for distance in cm or mm or m ?
     while (distance > 1)
@@ -216,26 +275,8 @@ void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
         int16_t current_distance = result[1];
         distance = distance - current_distance;
 
-        // Need to check if getAngleX need to be normalized or not.
-        int16_t target_angle = current_pos.calculateTargetAngle(target_pos);
-        int16_t current_angle = this->normalizeAngle(this->gyroaccel.getAngleX());
-        if (abs(current_angle - target_angle) > 5)
-        {
-            if (go_forward)
-            {
-                this->stop();
-                go_forward = false;
-            }
-            this->turn(target_angle, speed);
-        }
-        else
-        {
-            if (!go_forward)
-            {
-                this->move(FORWARDS, speed);
-                go_forward = true;
-            }
-        }
+        this->straightLine(FORWARDS, speed);
+
         start_time = end_time;
     }
     this->stop();
@@ -283,20 +324,45 @@ void GyroAccel::init()
     Wire.endTransmission(true);
 }
 
+void GyroAccel::readGyroAccel()
+{
+    Wire.beginTransmission(PIN_GYRO);
+    Wire.write(0x3B);
+    Wire.endTransmission(false);
+    Wire.requestFrom(PIN_GYRO, 14, true);
+
+    this->AcX = Wire.read() << 8 | Wire.read(); // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)
+    this->AcY = Wire.read() << 8 | Wire.read(); // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
+    this->AcZ = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
+    this->Tmp = Wire.read() << 8 | Wire.read(); // 0x41 (TEMP_OUT_H) & 0x42 (TEMP_OUT_L)
+    this->GyX = Wire.read() << 8 | Wire.read(); // 0x43 (GYRO_XOUT_H) & 0x44 (GYRO_XOUT_L)
+    this->GyY = Wire.read() << 8 | Wire.read(); // 0x45 (GYRO_YOUT_H) & 0x46 (GYRO_YOUT_L)
+    this->GyZ = Wire.read() << 8 | Wire.read(); // 0x47 (GYRO_ZOUT_H) & 0x48 (GYRO_ZOUT_L)
+}
+
+int16_t GyroAccel::getTemperature()
+{
+    return this->Tmp;
+}
+
 int16_t GyroAccel::getAngleX()
 {
-    int16_t GyX = Wire.read() << 8 | Wire.read(); // 0x43 (GYRO_XOUT_H) & 0x44 (GYRO_XOUT_L)
-    return GyX;
+    return this->GyX;
+}
+
+int16_t GyroAccel::getAngleY()
+{
+    return this->GyY;
+}
+
+int16_t GyroAccel::getAngleZ()
+{
+    return this->GyZ;
 }
 
 int16_t GyroAccel::getAcceleration()
 {
-    int16_t AcX = Wire.read() << 8 | Wire.read(); // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)
-    int16_t AcY = Wire.read() << 8 | Wire.read(); // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
-    int16_t AcZ = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
-
-    int16_t acceleration[3] = {AcX, AcY, AcZ};
-
+    int16_t acceleration[3] = {this->AcX, this->AcY, this->AcZ};
     return acceleration;
 }
 
@@ -320,28 +386,36 @@ GyroAccel::getDistance(int16_t intervaleTemps, int16_t velocity, int16_t distanc
 
 void GyroAccel::test()
 {
-    int16_t AcX = Wire.read() << 8 | Wire.read(); // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)
-    int16_t AcY = Wire.read() << 8 | Wire.read(); // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
-    int16_t AcZ = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
-    int16_t Tmp = Wire.read() << 8 | Wire.read(); // 0x41 (TEMP_OUT_H) & 0x42 (TEMP_OUT_L)
-    int16_t GyX = Wire.read() << 8 | Wire.read(); // 0x43 (GYRO_XOUT_H) & 0x44 (GYRO_XOUT_L)
-    int16_t GyY = Wire.read() << 8 | Wire.read(); // 0x45 (GYRO_YOUT_H) & 0x46 (GYRO_YOUT_L)
-    int16_t GyZ = Wire.read() << 8 | Wire.read(); // 0x47 (GYRO_ZOUT_H) & 0x48 (GYRO_ZOUT_L)
-
+    delay(1000);
+    this->readGyroAccel();
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
+    Serial.println("");
     Serial.print("accelerometer_x=");
-    Serial.println(AcX);
+    Serial.println(this->AcX);
     Serial.print("accelerometer_y=");
-    Serial.println(AcY);
+    Serial.println(this->AcY);
     Serial.print("accelerometer_z=");
-    Serial.println(AcZ);
+    Serial.println(this->AcZ);
     Serial.print("temperature=");
-    Serial.println(Tmp / 340.00 + 36.53);
+    Serial.println(this->Tmp / 340.00 + 36.53);
     Serial.print("gyroscope_x=");
-    Serial.println(GyX);
+    Serial.println(this->GyX);
     Serial.print("gyroscope_y=");
-    Serial.println(GyY);
+    Serial.println(this->GyY);
     Serial.print("gyroscope_z=");
-    Serial.println(GyZ);
+    Serial.println(this->GyZ);
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////      TARGET      //////////////////////////////////////////////
