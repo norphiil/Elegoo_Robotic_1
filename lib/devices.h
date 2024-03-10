@@ -18,8 +18,11 @@ public:
     void init(double x, double y);
     double getX(void);
     double getY(void);
-    int16_t distanceTo(Pos pos);
-    int16_t calculateTargetAngle(Pos pos);
+    void set(double x, double y);
+    double distanceTo(Pos pos);
+    double calculateTargetAngle(Pos pos);
+    Pos translate(Pos point);
+    void toString(void);
 
 private:
     double x,
@@ -30,21 +33,29 @@ class GyroAccel
 {
 public:
     void init(void);
+    void getRotation(float *roll, float *pitch, float *yaw);
+    void getPosition(double *x, double *y, double *z);
+    void testPrint(void);
+
+private:
+    void IMU_error(void);
     int16_t getAngleX(void);
     int16_t getAngleY(void);
     int16_t getAngleZ(void);
-    int16_t getTemperature(void);
-    int16_t getAcceleration(void);
-    int16_t
-    getDistance(int16_t intervalleTemps, int16_t velocity, int16_t distance);
-    void test(void);
-
-private:
-    void readGyroAccel(void);
-    int16_t AcX,
-        AcY, AcZ, Tmp, GyX, GyY, GyZ;
-
-#define PIN_GYRO 0x68
+    void calculateCurrentDistance();
+    void getAcceleration(int16_t *ax, int16_t *ay, int16_t *az, bool calibrated = false);
+    void getGyroscope(int16_t *gx, int16_t *gy, int16_t *gz, bool calibrated = false);
+    void Mahony_update(float ax, float ay, float az, float gx, float gy, float gz, float deltat);
+    double AcX,
+        AcY, AcZ, GyX, GyY, GyZ;
+    float AcXError, AcYError, AcZError, GyXError, GyYError, GyZError;
+    double current_angle_x, current_angle_y, current_angle_z;
+    double current_distance_x, current_distance_y, current_distance_z;
+    unsigned long last_time_rotation, last_time_acceleration;
+    double accel_sensitivity;
+    float q[4] = {1.0, 0.0, 0.0, 0.0};
+#define gscale ((250. / 32768.0) * (PI / 180.0)) // gyro default 250 LSB per d/s -> rad/s
+#define MPU 0b1101000                            // I2C address of the MPU-6050
 };
 
 class Motor // TB6612
@@ -54,7 +65,7 @@ public:
     void init(void);
 
     // One function for all simple movements. Returns false if the direction is not recognised, true otherwise
-    void move(Direction direction, uint8_t speed);
+    void move(Direction direction, uint8_t speed_left, uint8_t speed_right);
     void stop(void);
 
     // These are the functions responsible for changing pin values, can use them specifically to move non-predefined ways
@@ -63,6 +74,8 @@ public:
 
     // One function to make the robot go to specific point
     void goToPoint(Pos current_pos, Pos target_pos, uint8_t speed);
+    void testSquare(void);
+    GyroAccel getGyroAccel(void);
 
 private:
     GyroAccel gyroaccel;
@@ -71,17 +84,18 @@ private:
     uint8_t normaliseSpeed(uint8_t speed);
 
     // These functions abstract from the leftMotor and rightMotor functions to provide direction
-    void forwards(uint8_t speed);
-    void backwards(uint8_t speed);
-    void right(uint8_t speed);
-    void left(uint8_t speed);
-    void forwardsRight(uint8_t speed);
-    void forwardsLeft(uint8_t speed);
-    void backwardsRight(uint8_t speed);
-    void backwardsLeft(uint8_t speed);
-    int16_t normalizeAngle(int16_t angle);
-    void turn(int16_t angle_diff, uint8_t speed);
+    void forwards(uint8_t speed_left, uint8_t speed_right);
+    void backwards(uint8_t speed_left, uint8_t speed_right);
+    void right(uint8_t speed_left, uint8_t speed_right);
+    void left(uint8_t speed_left, uint8_t speed_right);
+    void forwardsRight(uint8_t speed_left, uint8_t speed_right);
+    void forwardsLeft(uint8_t speed_left, uint8_t speed_right);
+    void backwardsRight(uint8_t speed_left, uint8_t speed_right);
+    void backwardsLeft(uint8_t speed_left, uint8_t speed_right);
+    double normalizeAngle(double angle);
+    void turn(double angle_diff, uint8_t speed);
     void straightLine(Direction direction, uint8_t speed);
+    bool areAnglesEqual(double angle1, double angle2, double tolerance = 0.01);
 
 #define PIN_MOTOR_A_PWM 5
 #define PIN_MOTOR_A_IN 7

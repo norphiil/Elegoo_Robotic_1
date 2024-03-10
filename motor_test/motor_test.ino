@@ -12,11 +12,11 @@ GyroAccel gyroAccel;
 void setup()
 {
   Serial.begin(9600);
-
+  Serial.println(" Starting...");
   motor.init();
   delay(2000);
 
-  gyroAccel.init();
+  // gyroAccel.init();
   // motor.move(FORWARDS, 100);
   // delay(1000);
   // motor.move(BACKWARDS, 100);
@@ -55,6 +55,8 @@ void setup()
 
 void loop()
 {
-  gyroAccel.test();
+  motor.testSquare();
+  // gyroAccel.testPrint();
+  // gyroAccel.calculateData();
   // put your main code here, to run repeatedly:
 }
