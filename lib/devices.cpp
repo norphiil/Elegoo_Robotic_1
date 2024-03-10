@@ -257,7 +257,6 @@ bool Motor::areAnglesEqual(double angle1, double angle2, double tolerance = 0.01
 void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
 {
     double distance = current_pos.distanceTo(target_pos);
-
     Serial.println("Distance:");
     Serial.println(distance);
     Serial.println("Target:");
@@ -268,7 +267,7 @@ void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
     Serial.println(current_pos.getY());
 
     double angle = current_pos.calculateTargetAngle(target_pos);
-    this->turn(this->normalizeAngle(angle), speed);
+    this->turn(angle, speed);
     Serial.println("Turning done");
     while (distance > 1)
     {
