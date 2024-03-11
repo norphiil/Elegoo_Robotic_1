@@ -152,15 +152,22 @@ void Motor::stop()
 
 void Motor::turn(double angle, uint8_t speed)
 {
+    if (angle < 0)
+    {
+        angle += 360;
+        angle = fmod(angle, 360);
+    }
     float roll, pitch, yaw;
     this->gyroaccel.getRotation(&roll, &pitch, &yaw);
     float current_angle = yaw;
     Serial.println(current_angle);
     Direction current_rotate_direction;
-    float diff_angle_abs = abs(angle - current_angle);
-    float diff_angle_cw = fmod(angle - current_angle + 360.0, 360.0);
-    float diff_angle_ccw = fmod(current_angle - angle + 360.0, 360.0);
-    if (diff_angle_cw < diff_angle_ccw)
+    double difference_plus = fmod((angle - current_angle + 360.0), 360.0);
+    double difference_minus = fmod((current_angle - angle + 360.0), 360.0);
+
+    // Sélectionner la plus petite différence
+    double differenceFinale = min(difference_plus, difference_minus);
+    if (difference_plus < difference_minus)
     {
         current_rotate_direction = RIGHT;
     }
@@ -169,39 +176,72 @@ void Motor::turn(double angle, uint8_t speed)
         current_rotate_direction = LEFT;
     }
 
+    SimplePID pid = SimplePID();
+
     Serial.println("Turning");
     Serial.println(angle);
     Serial.println(current_angle);
     Serial.println(this->areAnglesEqual(current_angle, angle, 1));
     uint16_t ind = 0;
+
+    uint8_t old_speed = speed;
     uint8_t new_speed = speed;
-    while (!this->areAnglesEqual(current_angle, angle, 0.1))
+    Direction old_rotate_direction = current_rotate_direction;
+    const double decelerationFactor = 0.5;
+    while (!this->areAnglesEqual(angle, current_angle, 0.2))
     {
+        double difference_plus = fmod((angle - current_angle + 360.0), 360.0);
+        double difference_minus = fmod((current_angle - angle + 360.0), 360.0);
+        double differenceFinale = min(difference_plus, difference_minus);
+
         ind++;
         if (ind % 30 == 0)
         {
+
+            // Sélectionner la plus petite différence
             Serial.println("Turning");
             Serial.println(angle);
             Serial.println(current_angle);
-            Serial.println(this->areAnglesEqual(current_angle, angle, 1));
+            Serial.println(differenceFinale);
+            Serial.println("Speed: ");
+            Serial.println(old_speed);
+            Serial.println(speed);
+            Serial.println(new_speed);
         }
 
         Direction old_current_rotate_direction = current_rotate_direction;
 
-        double angle_diff = abs(current_angle - angle);
-        uint8_t angle_start_reduce = 30;
-        if (angle_diff < angle_start_reduce)
+        if (differenceFinale < 90)
         {
-            new_speed = (angle_diff / angle_start_reduce) * speed;
-            if (new_speed < MIN_SPEED * 2.5)
+            if (difference_plus < difference_minus)
             {
-                new_speed = MIN_SPEED * 2.5;
+                current_rotate_direction = RIGHT;
             }
+            else
+            {
+                current_rotate_direction = LEFT;
+            }
+        }
+        if (old_current_rotate_direction != current_rotate_direction)
+        {
+            speed *= decelerationFactor;
+            new_speed = max(1, speed);
+        }
+        else if (differenceFinale < 180 / 2)
+        {
+            new_speed = (differenceFinale / (180 / 2)) * speed;
+            new_speed = max(MIN_SPEED * 2, new_speed);
+        }
+        else if (differenceFinale > 180 / 2)
+        {
+            new_speed = old_speed;
         }
         else
         {
             new_speed = speed;
         }
+
+        delay(10);
         this->move(current_rotate_direction, new_speed, new_speed);
         float roll, pitch, yaw;
         this->gyroaccel.getRotation(&roll, &pitch, &yaw);
@@ -240,18 +280,12 @@ void Motor::straightLine(Direction direction, uint8_t speed)
 
 bool Motor::areAnglesEqual(double angle1, double angle2, double tolerance = 0.01)
 {
-    // Assurez-vous que les angles sont dans la plage [-180, 180)
-    angle1 = this->normalizeAngle(angle1);
-    angle2 = this->normalizeAngle(angle2);
-
-    // Calcul de la différence absolue entre les angles
-    double angleDifference = abs(angle1 - angle2);
-
-    // Assurez-vous que l'angleDifference est dans la plage [0, 180)
-    angleDifference = this->normalizeAngle(angleDifference);
+    double difference_plus = fmod((angle1 - angle2 + 360.0), 360.0);
+    double difference_minus = fmod((angle2 - angle1 + 360.0), 360.0);
+    double differenceFinale = min(difference_plus, difference_minus);
 
     // Comparaison avec la tolérance
-    return abs(angleDifference) <= tolerance;
+    return abs(differenceFinale) <= tolerance;
 }
 
 void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
@@ -825,4 +859,18 @@ void Path::run(Motor motor, uint8_t speed)
     }
 
     Serial.println("Path completed!");
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////      SIMPLEPID      ////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+double SimplePID::compute(double input)
+{
+    double error = input;
+    this->integral += error * this->dt;
+    double derivative = (error - this->previousError) / this->dt;
+    double output = this->kp * error + this->ki * this->integral + this->kd * derivative;
+    this->previousError = error;
+    return output;
 }

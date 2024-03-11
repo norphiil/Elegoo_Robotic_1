@@ -12,6 +12,20 @@ enum Direction
     BACKWARDS_LEFT
 };
 
+class SimplePID
+{
+public:
+    double compute(double input);
+
+private:
+    double kp = 0.1;      // Coefficient proportionnel
+    double ki = 0.01;     // Coefficient intégral
+    double kd = 0.1;      // Coefficient dérivé
+    double dt = 0.10;     // Intervalle de temps entre les échantillons
+    double previousError; // Erreur précédente
+    double integral;      // Terme intégral
+};
+
 class Pos
 {
 public:
