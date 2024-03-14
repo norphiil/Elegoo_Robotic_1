@@ -188,7 +188,7 @@ void Motor::turn(double angle, uint8_t speed)
     double difference_minus = fmod((current_angle - angle + 360.0), 360.0);
 
     double differenceFinale = min(difference_plus, difference_minus);
-    if (difference_plus < difference_minus)
+    if (difference_plus <= difference_minus)
     {
         current_rotate_direction = RIGHT;
     }
@@ -197,27 +197,36 @@ void Motor::turn(double angle, uint8_t speed)
         current_rotate_direction = LEFT;
     }
 
+    Serial.println("Turning");
+    Serial.println(angle);
+    Serial.println(current_angle);
+    Serial.println(differenceFinale);
+    Serial.println(difference_plus);
+    Serial.println(difference_minus);
+
     uint16_t ind = 0;
 
-    uint8_t old_speed = speed;
     uint8_t new_speed = speed;
     Direction old_rotate_direction = current_rotate_direction;
     const double decelerationFactor = 0.5;
     float overflow_angle = 0;
-    while (!this->areAnglesEqual(angle, current_angle, 0.05))
+    while (!this->gyroaccel.areAnglesEqual(angle, current_angle, 0.06))
     {
         double difference_plus = fmod((angle - current_angle + 360.0), 360.0);
         double difference_minus = fmod((current_angle - angle + 360.0), 360.0);
         double differenceFinale = min(difference_plus, difference_minus);
 
+        Serial.println("Turning");
+        Serial.println(angle);
+        Serial.println(current_angle);
+        Serial.println(differenceFinale);
+        Serial.println(difference_plus);
+        Serial.println(difference_minus);
         Direction old_current_rotate_direction = current_rotate_direction;
-        if (differenceFinale - overflow_angle < 0)
-        {
-            this->stop();
-        }
+
         if (differenceFinale < 90)
         {
-            if (difference_plus < difference_minus)
+            if (difference_plus <= difference_minus)
             {
                 current_rotate_direction = RIGHT;
             }
@@ -229,23 +238,20 @@ void Motor::turn(double angle, uint8_t speed)
         if (old_current_rotate_direction != current_rotate_direction)
         {
             this->stop();
-            float roll, pitch, yaw;
-            this->gyroaccel.getRotation(&roll, &pitch, &yaw);
-            overflow_angle = this->getAnglesDiff(yaw, angle);
-            speed *= decelerationFactor;
-            new_speed = max(0.1, speed);
+            delay(100);
+            new_speed = MIN_SPEED * 2;
         }
         else if (differenceFinale < 180 / 2)
         {
             new_speed = (differenceFinale / (180 / 2)) * speed;
-            new_speed = max(MIN_SPEED * 2, new_speed);
+            new_speed = new_speed;
         }
         else if (differenceFinale > 180 / 2)
         {
-            new_speed = old_speed;
+            new_speed = speed;
         }
 
-        this->move(current_rotate_direction, new_speed, new_speed);
+        this->move(current_rotate_direction, max(MIN_SPEED * 2, new_speed), max(MIN_SPEED * 2, new_speed));
         float roll, pitch, yaw;
         this->gyroaccel.getRotation(&roll, &pitch, &yaw);
         current_angle = yaw;
@@ -268,7 +274,7 @@ void Motor::straightLine(Direction direction, uint8_t speed, float initialYaw)
     float roll, pitch, currentYaw;
     this->gyroaccel.getRotation(&roll, &pitch, &currentYaw);
 
-    float angleDifference = this->getAnglesDiff(currentYaw, initialYaw);
+    float angleDifference = this->gyroaccel.getAnglesDiff(currentYaw, initialYaw);
 
     int speedLeft = speed;
     int speedRight = speed;
@@ -286,36 +292,6 @@ void Motor::straightLine(Direction direction, uint8_t speed, float initialYaw)
 }
 
 /**
- * Returns the difference between two angles
- * @param angle1 First angle (in degrees from 0 to 360)
- * @param angle2 Second angle (in degrees from 0 to 360)
- * @return The difference between the two angles
- */
-double Motor::getAnglesDiff(double angle1, double angle2)
-{
-    double difference_plus = fmod((angle1 - angle2 + 360.0), 360.0);
-    double difference_minus = fmod((angle2 - angle1 + 360.0), 360.0);
-    double differenceFinale = min(difference_plus, difference_minus);
-    return differenceFinale;
-}
-
-/**
- * Compares two angles and returns true if their difference is less than or equal to a given tolerance.
- * @param angle1 First angle
- * @param angle2 Second angle
- * @param tolerance Comparison tolerance
- * @return True if angles are equal, false otherwise
- *
- */
-bool Motor::areAnglesEqual(double angle1, double angle2, double tolerance = 0.01)
-{
-    double differenceFinale = this->getAnglesDiff(angle1, angle2);
-
-    // Comparaison avec la tolérance
-    return abs(differenceFinale) <= tolerance;
-}
-
-/**
  * Moves the robot to a given point at a given speed
  * @param current_pos The current position of the robot
  * @param target_pos The target position of the robot
@@ -324,7 +300,8 @@ bool Motor::areAnglesEqual(double angle1, double angle2, double tolerance = 0.01
 void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
 {
     double distance = current_pos.distanceTo(target_pos);
-
+    Serial.println("Distance:");
+    Serial.println(distance);
     float roll, pitch, yaw;
     this->gyroaccel.getRotation(&roll, &pitch, &yaw);
     double angle = current_pos.calculateTargetAngle(target_pos);
@@ -335,7 +312,7 @@ void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
     while (distance > 0.1)
     {
         this->straightLine(FORWARDS, speed, yaw);
-        if (millis() - start_time > 1000)
+        if (millis() - start_time > 1000 * distance)
         {
             distance = 0.01;
         }
@@ -371,13 +348,13 @@ void Motor::testSquare()
     // pos4.init(1, 0);
 
     Pos pos1;
-    pos1.init(0, -1);
+    pos1.init(0, 1);
     Pos pos2;
     pos2.init(1, 0);
     Pos pos3;
-    pos3.init(0, 1);
+    pos3.init(0, -1);
     Pos pos4;
-    pos4.init(-1, 0);
+    pos4.init(-2, 0);
     Pos pos5;
     pos5.init(1, 0);
 
@@ -385,8 +362,8 @@ void Motor::testSquare()
     Pos path_list[pos_number] = {pos1, pos2, pos3, pos4, pos5};
 
     Path path;
-    path.init(path_list);
-    path.run(*this, 100);
+    path.init(path_list, pos_number);
+    path.run(*this, 100, pos_number);
 
     // double x, y, z;
     // this->gyroaccel.getPosition(&x, &y, &z);
@@ -434,15 +411,58 @@ void Ultrasonic::test()
 
     digitalWrite(PIN_TRIG, LOW); // Go back to prepare mode
 
-    /* Takes the time in microseconds for the sound to travel TO AND FROM the object from the echo pin.
-     * Divided by 58 to convert to cm. 29 is the approximate time taken for sound to travel 1cm. The sound
-     * travels both TO and FROM the object, so twice 29 is 58.
-     */
-    unsigned int distanceCm = ((unsigned int)pulseIn(PIN_ECHO, HIGH) / 58);
+    long duration = pulseIn(PIN_ECHO, HIGH);
 
+    /*
+     * Speed of sound is 340m/s or 0.034cm/µs
+     * The pulse travels to the object and back, so we divide by 2
+     */
+    uint16_t distanceCm = duration * 0.034 / 2;
     Serial.print("ultrasonic_sensor_test=");
     Serial.print(distanceCm);
     Serial.println("cm");
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////      SERVO     ///////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+void Servo::init()
+{
+    // Servo motor
+    pinMode(PIN_SERVO, OUTPUT); // Set servo pin as output
+    this->setAngle(90);
+}
+
+/**
+ * Turns the servo motor to a given angle (0-180)
+ */
+void Servo::setAngle(uint8_t angle)
+{
+    // Convert degrees to pulse width
+    int pulseWidth = map(angle, 0, 180, 500, 2400);
+    // Set servo position
+    digitalWrite(PIN_SERVO, HIGH);
+    delayMicroseconds(pulseWidth);
+    digitalWrite(PIN_SERVO, LOW);
+}
+
+void Servo::test()
+{
+    for (int i = 90; i < 180; i++)
+    {
+        this->setAngle(i);
+        delay(15);
+    }
+    for (int i = 180; i > 0; i--)
+    {
+        this->setAngle(i);
+        delay(15);
+    }
+    for (int i = 0; i < 90; i++)
+    {
+        this->setAngle(i);
+        delay(15);
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -489,6 +509,63 @@ void GyroAccel::init()
     this->last_time_rotation = micros();
 }
 
+void GyroAccel::calibrate()
+{
+    Serial.println("Calibrate...");
+
+    float roll, pitch, yaw;
+    this->getRotation(&roll, &pitch, &yaw);
+    float current_angle = yaw;
+    Serial.println(current_angle);
+    bool calibration_done = false;
+    while (!calibration_done)
+    {
+        this->getRotation(&roll, &pitch, &yaw);
+        float current_angle = yaw;
+        Serial.println(current_angle);
+        if (this->areAnglesEqual(0, current_angle, 5))
+        {
+            Serial.println("Calibration done");
+            calibration_done = true;
+        }
+        else
+        {
+            Serial.println("Calibration not done");
+        }
+        delay(100);
+    }
+}
+
+/**
+ * Returns the difference between two angles
+ * @param angle1 First angle (in degrees from 0 to 360)
+ * @param angle2 Second angle (in degrees from 0 to 360)
+ * @return The difference between the two angles
+ */
+double GyroAccel::getAnglesDiff(double angle1, double angle2)
+{
+    double difference_plus = fmod((angle1 - angle2 + 360.0), 360.0);
+    double difference_minus = fmod((angle2 - angle1 + 360.0), 360.0);
+    double differenceFinale = min(difference_plus, difference_minus);
+    return differenceFinale;
+}
+
+/**
+ * Compares two angles and returns true if their difference is less than or equal to a given tolerance.
+ * @param angle1 First angle
+ * @param angle2 Second angle
+ * @param tolerance Comparison tolerance
+ * @return True if angles are equal, false otherwise
+ *
+ */
+bool GyroAccel::areAnglesEqual(double angle1, double angle2, double tolerance = 0.01)
+{
+    double differenceFinale = this->getAnglesDiff(angle1, angle2);
+
+    // Comparaison avec la tolérance
+    return abs(differenceFinale) <= tolerance;
+}
+
 /**
  * Calibrates the IMU by calculating the error values for the accelerometer and gyroscope
  */
@@ -508,6 +585,7 @@ void GyroAccel::IMU_error()
         ayError += (ay);
         azError += (az);
         c++;
+        delay(1);
         // delay(2000 / nb);
     }
     this->AcXError = ((float)axError) / (float)nb;
@@ -528,6 +606,7 @@ void GyroAccel::IMU_error()
 
         c++;
         // delay(2000 / nb);
+        delay(1);
     }
     this->GyXError = ((float)gxError) / (float)nb;
     this->GyYError = ((float)gyError) / (float)nb;
@@ -921,9 +1000,9 @@ double Pos::calculateTargetAngle(Pos pos)
  * Initialises the path
  * @param path_list The list of positions in the path
  */
-void Path::init(Pos path_list[10])
+void Path::init(Pos path_list[100], uint8_t number_of_points)
 {
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < number_of_points; i++)
     {
         this->path_list[i] = *(path_list + i);
     }
@@ -934,9 +1013,9 @@ void Path::init(Pos path_list[10])
  * @param motor The motor object to use
  * @param speed The speed at which to move
  */
-void Path::run(Motor motor, uint8_t speed)
+void Path::run(Motor motor, uint8_t speed, uint8_t number_of_points)
 {
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < number_of_points; i++)
     {
         if (this->path_list[i].getX() != this->path_list[i].getX() || this->path_list[i].getY() != this->path_list[i].getY())
         {

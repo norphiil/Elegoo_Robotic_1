@@ -9,11 +9,17 @@
 
 Motor motor;
 GyroAccel gyroAccel;
+Ultrasonic ultrasonic;
+Servo servo;
 void setup()
 {
   Serial.begin(9600);
   Serial.println(" Starting...");
   motor.init();
+  ultrasonic.init();
+  servo.init();
+  delay(2000);
+  servo.test();
   delay(2000);
   motor.testSquare();
   // gyroAccel.init();
@@ -55,6 +61,7 @@ void setup()
 
 void loop()
 {
+  // ultrasonic.test();
   // gyroAccel.testPrint();
   // gyroAccel.calculateData();
   // put your main code here, to run repeatedly:

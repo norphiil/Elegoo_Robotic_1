@@ -48,10 +48,14 @@ public:
     void init(void);
     void getRotation(float *roll, float *pitch, float *yaw);
     // void getPosition(double *x, double *y, double *z);
+    bool areAnglesEqual(double angle1, double angle2, double tolerance = 0.01);
+    double getAnglesDiff(double angle1, double angle2);
     void testPrint(void);
+    void calibrate(void);
 
 private:
-    void IMU_error(void);
+    void
+    IMU_error(void);
     void getAcceleration(int16_t *ax, int16_t *ay, int16_t *az, bool calibrated = false);
     void getGyroscope(int16_t *gx, int16_t *gy, int16_t *gz, bool calibrated = false);
     void Mahony_update(float ax, float ay, float az, float gx, float gy, float gz, float deltat);
@@ -81,7 +85,6 @@ public:
     void goToPoint(Pos current_pos, Pos target_pos, uint8_t speed);
     void testSquare(void);
     GyroAccel getGyroAccel(void);
-    double getAnglesDiff(double angle1, double angle2);
 
 private:
     GyroAccel gyroaccel;
@@ -100,7 +103,6 @@ private:
     void backwardsLeft(uint8_t speed_left, uint8_t speed_right);
     void turn(double angle_diff, uint8_t speed);
     void straightLine(Direction direction, uint8_t speed, float initialYaw);
-    bool areAnglesEqual(double angle1, double angle2, double tolerance = 0.01);
 
 #define PIN_MOTOR_A_PWM 5
 #define PIN_MOTOR_A_IN 7
@@ -125,6 +127,7 @@ public:
 
 private:
     // unsigned int microseconds_to_cm(unsigned int microseconds);
+#define PIN_SERVO 10     // Pin responsible for the servo motor
 #define PIN_TRIG 13      // Pin responsible for the trigger pulse. LOW = prepare for pulse, HIGH = send pulse
 #define PIN_ECHO 12      // Pin which gives us the time until the echo pulse was received, HIGH = receive the value
 #define MAX_DISTANCE 400 // cm
@@ -133,9 +136,17 @@ private:
 class Path
 {
 public:
-    void init(Pos path_list[10]);
-    void run(Motor motor, uint8_t speed);
+    void init(Pos path_list[100], uint8_t number_of_points);
+    void run(Motor motor, uint8_t speed, uint8_t number_of_points);
 
 private:
-    Pos path_list[10];
+    Pos path_list[100];
+};
+
+class Servo
+{
+public:
+    void init(void);
+    void test(void);
+    void setAngle(uint8_t angle);
 };
