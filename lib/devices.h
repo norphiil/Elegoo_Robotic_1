@@ -90,6 +90,7 @@ public:
     void goToPoint(Pos current_pos, Pos target_pos, uint8_t speed);
     void testSquare(void);
     GyroAccel getGyroAccel(void);
+    double getAnglesDiff(double angle1, double angle2);
 
 private:
     GyroAccel gyroaccel;
@@ -108,7 +109,7 @@ private:
     void backwardsLeft(uint8_t speed_left, uint8_t speed_right);
     double normalizeAngle(double angle);
     void turn(double angle_diff, uint8_t speed);
-    void straightLine(Direction direction, uint8_t speed);
+    void straightLine(Direction direction, uint8_t speed, float initialYaw);
     bool areAnglesEqual(double angle1, double angle2, double tolerance = 0.01);
 
 #define PIN_MOTOR_A_PWM 5

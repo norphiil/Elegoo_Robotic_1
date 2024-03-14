@@ -176,41 +176,42 @@ void Motor::turn(double angle, uint8_t speed)
         current_rotate_direction = LEFT;
     }
 
-    SimplePID pid = SimplePID();
-
-    Serial.println("Turning");
-    Serial.println(angle);
-    Serial.println(current_angle);
-    Serial.println(this->areAnglesEqual(current_angle, angle, 1));
+    // Serial.println("Turning");
+    // Serial.println(angle);
+    // Serial.println(current_angle);
     uint16_t ind = 0;
 
     uint8_t old_speed = speed;
     uint8_t new_speed = speed;
     Direction old_rotate_direction = current_rotate_direction;
     const double decelerationFactor = 0.5;
-    while (!this->areAnglesEqual(angle, current_angle, 0.2))
+    float overflow_angle = 0;
+    while (!this->areAnglesEqual(angle, current_angle, 0.05))
     {
         double difference_plus = fmod((angle - current_angle + 360.0), 360.0);
         double difference_minus = fmod((current_angle - angle + 360.0), 360.0);
         double differenceFinale = min(difference_plus, difference_minus);
 
-        ind++;
-        if (ind % 30 == 0)
-        {
+        // ind++;
+        // if (ind % 30 == 0)
+        // {
 
-            // Sélectionner la plus petite différence
-            Serial.println("Turning");
-            Serial.println(angle);
-            Serial.println(current_angle);
-            Serial.println(differenceFinale);
-            Serial.println("Speed: ");
-            Serial.println(old_speed);
-            Serial.println(speed);
-            Serial.println(new_speed);
-        }
+        //     // Sélectionner la plus petite différence
+        //     Serial.println("Turning");
+        //     Serial.println(angle);
+        //     Serial.println(current_angle);
+        //     Serial.println(differenceFinale);
+        //     Serial.println("Speed: ");
+        //     Serial.println(old_speed);
+        //     Serial.println(speed);
+        //     Serial.println(new_speed);
+        // }
 
         Direction old_current_rotate_direction = current_rotate_direction;
-
+        if (differenceFinale - overflow_angle < 0)
+        {
+            this->stop();
+        }
         if (differenceFinale < 90)
         {
             if (difference_plus < difference_minus)
@@ -224,8 +225,12 @@ void Motor::turn(double angle, uint8_t speed)
         }
         if (old_current_rotate_direction != current_rotate_direction)
         {
+            this->stop();
+            float roll, pitch, yaw;
+            this->gyroaccel.getRotation(&roll, &pitch, &yaw);
+            overflow_angle = this->getAnglesDiff(yaw, angle);
             speed *= decelerationFactor;
-            new_speed = max(1, speed);
+            new_speed = max(0.1, speed);
         }
         else if (differenceFinale < 180 / 2)
         {
@@ -236,12 +241,7 @@ void Motor::turn(double angle, uint8_t speed)
         {
             new_speed = old_speed;
         }
-        else
-        {
-            new_speed = speed;
-        }
 
-        delay(10);
         this->move(current_rotate_direction, new_speed, new_speed);
         float roll, pitch, yaw;
         this->gyroaccel.getRotation(&roll, &pitch, &yaw);
@@ -273,16 +273,50 @@ double Motor::normalizeAngle(double angle)
 //     *Yaw = agz;
 // }
 
-void Motor::straightLine(Direction direction, uint8_t speed)
+void Motor::straightLine(Direction direction, uint8_t speed, float initialYaw)
 {
-    this->move(direction, speed, speed);
+    // Constantes pour la régulation
+    const float targetAngle = 0.0;       // Angle cible pour un mouvement droit
+    const float angleTolerance = 2.0;    // Tolérance d'angle acceptable
+    const float correctionFactor = 0.05; // Facteur de correction de la vitesse
+
+    // Lire l'angle actuel du gyroscope
+    float roll, pitch, currentYaw;
+    this->gyroaccel.getRotation(&roll, &pitch, &currentYaw);
+
+    // Calculer la différence d'angle par rapport à la position initiale
+    float angleDifference = this->getAnglesDiff(currentYaw, initialYaw);
+
+    // Ajuster la vitesse des roues en fonction de la dérive
+    int speedLeft = speed;
+    int speedRight = speed;
+
+    if (angleDifference > angleTolerance)
+    {
+        // Déviation vers la droite, ajuster la vitesse de la roue gauche
+        speedLeft = static_cast<int>(speed * (1.0 - correctionFactor));
+    }
+    else if (angleDifference < -angleTolerance)
+    {
+        // Déviation vers la gauche, ajuster la vitesse de la roue droite
+        speedRight = static_cast<int>(speed * (1.0 - correctionFactor));
+    }
+
+    // Appliquer la commande de mouvement avec les vitesses ajustées
+    this->move(direction, speedLeft, speedRight);
 }
 
-bool Motor::areAnglesEqual(double angle1, double angle2, double tolerance = 0.01)
+double Motor::getAnglesDiff(double angle1, double angle2)
 {
     double difference_plus = fmod((angle1 - angle2 + 360.0), 360.0);
     double difference_minus = fmod((angle2 - angle1 + 360.0), 360.0);
     double differenceFinale = min(difference_plus, difference_minus);
+    return differenceFinale;
+}
+
+bool Motor::areAnglesEqual(double angle1, double angle2, double tolerance = 0.01)
+{
+    double differenceFinale = this->getAnglesDiff(angle1, angle2);
 
     // Comparaison avec la tolérance
     return abs(differenceFinale) <= tolerance;
@@ -300,64 +334,83 @@ void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
     Serial.println(current_pos.getX());
     Serial.println(current_pos.getY());
 
+    float roll, pitch, yaw;
+    this->gyroaccel.getRotation(&roll, &pitch, &yaw);
     double angle = current_pos.calculateTargetAngle(target_pos);
     this->turn(angle, speed);
     Serial.println("Turning done");
-    while (distance > 1)
+    delay(1000);
+    long start_time = millis();
+    while (distance > 0.1)
     {
+        this->straightLine(FORWARDS, speed, yaw);
+        if (millis() - start_time > 1000)
+        {
+            distance = 0.01;
+        }
+        // double x, y, z;
+        // this->gyroaccel.getPosition(&x, &y, &z);
+        // current_pos.set(x, y);
+        // distance = current_pos.distanceTo(target_pos);
+        // Serial.println("Distance:");
+        // Serial.println(distance);
+        // Serial.println("Target:");
+        // Serial.println(target_pos.getX());
+        // Serial.println(target_pos.getY());
+        // Serial.println("Current:");
+        // Serial.println(current_pos.getX());
+        // Serial.println(current_pos.getY());
         delay(10);
-        this->straightLine(FORWARDS, speed);
-        double x, y, z;
-        this->gyroaccel.getPosition(&x, &y, &z);
-        current_pos.set(x, y);
-        distance = current_pos.distanceTo(target_pos);
-        Serial.println("Distance:");
-        Serial.println(distance);
-        Serial.println("Target:");
-        Serial.println(target_pos.getX());
-        Serial.println(target_pos.getY());
-        Serial.println("Current:");
-        Serial.println(current_pos.getX());
-        Serial.println(current_pos.getY());
     }
     this->stop();
 }
 
 void Motor::testSquare()
 {
+    // Pos pos1;
+    // pos1.init(0, 1);
+    // Pos pos2;
+    // pos2.init(0, -1);
+    // Pos pos3;
+    // pos3.init(-1, 0);
+    // Pos pos4;
+    // pos4.init(1, 0);
+
     Pos pos1;
-    pos1.init(0, 1);
+    pos1.init(0, -1);
     Pos pos2;
-    pos2.init(0, -1);
+    pos2.init(1, 0);
     Pos pos3;
-    pos3.init(-1, 0);
+    pos3.init(0, 1);
     Pos pos4;
-    pos4.init(1, 0);
+    pos4.init(-1, 0);
+    Pos pos5;
+    pos5.init(1, 0);
 
-    uint8_t pos_number = 4;
-    Pos path_list[pos_number] = {pos1, pos2, pos3, pos4};
+    uint8_t pos_number = 5;
+    Pos path_list[pos_number] = {pos1, pos2, pos3, pos4, pos5};
 
-    // Path path;
-    // path.init(path_list);
-    // path.run(*this, 100);
+    Path path;
+    path.init(path_list);
+    path.run(*this, 100);
 
-    double x, y, z;
-    this->gyroaccel.getPosition(&x, &y, &z);
-    Pos current_pos = Pos();
-    current_pos.init(0, 0);
-    double angle_d = 0;
-    for (int i = 0; i < pos_number; i++)
-    {
-        Pos target_pos = path_list[i];
-        Serial.println("Moving to next point");
-        double angle = current_pos.calculateTargetAngle(target_pos);
-        Serial.println("angle: ");
-        Serial.println(angle);
-        // current_pos = target_pos;
-        this->turn(angle, 100);
-        delay(1000);
-    }
-    delay(5000);
+    // double x, y, z;
+    // this->gyroaccel.getPosition(&x, &y, &z);
+    // Pos current_pos = Pos();
+    // current_pos.init(0, 0);
+    // double angle_d = 0;
+    // for (int i = 0; i < pos_number; i++)
+    // {
+    //     Pos target_pos = path_list[i];
+    //     Serial.println("Moving to next point");
+    //     double angle = current_pos.calculateTargetAngle(target_pos);
+    //     Serial.println("angle: ");
+    //     Serial.println(angle);
+    //     // current_pos = target_pos;
+    //     this->turn(angle, 100);
+    //     delay(1000);
+    // }
+    // delay(5000);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -845,10 +898,10 @@ void Path::run(Motor motor, uint8_t speed)
             break;
         }
 
-        double x, y, z;
-        motor.getGyroAccel().getPosition(&x, &y, &z);
+        // double x, y, z;
+        // motor.getGyroAccel().getPosition(&x, &y, &z);
         Pos current_pos = Pos();
-        current_pos.init(x, y);
+        current_pos.init(0, 0);
         Serial.println("Moving to next point");
         Serial.print("X=");
         Serial.print(this->path_list[i].getX());
