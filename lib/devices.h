@@ -35,7 +35,6 @@ public:
     void set(double x, double y);
     double distanceTo(Pos pos);
     double calculateTargetAngle(Pos pos);
-    Pos translate(Pos point);
     void toString(void);
 
 private:
@@ -48,23 +47,15 @@ class GyroAccel
 public:
     void init(void);
     void getRotation(float *roll, float *pitch, float *yaw);
-    void getPosition(double *x, double *y, double *z);
+    // void getPosition(double *x, double *y, double *z);
     void testPrint(void);
 
 private:
     void IMU_error(void);
-    int16_t getAngleX(void);
-    int16_t getAngleY(void);
-    int16_t getAngleZ(void);
-    void calculateCurrentDistance();
     void getAcceleration(int16_t *ax, int16_t *ay, int16_t *az, bool calibrated = false);
     void getGyroscope(int16_t *gx, int16_t *gy, int16_t *gz, bool calibrated = false);
     void Mahony_update(float ax, float ay, float az, float gx, float gy, float gz, float deltat);
-    double AcX,
-        AcY, AcZ, GyX, GyY, GyZ;
     float AcXError, AcYError, AcZError, GyXError, GyYError, GyZError;
-    double current_angle_x, current_angle_y, current_angle_z;
-    double current_distance_x, current_distance_y, current_distance_z;
     unsigned long last_time_rotation, last_time_acceleration;
     double accel_sensitivity;
     float q[4] = {1.0, 0.0, 0.0, 0.0};
@@ -107,7 +98,6 @@ private:
     void forwardsLeft(uint8_t speed_left, uint8_t speed_right);
     void backwardsRight(uint8_t speed_left, uint8_t speed_right);
     void backwardsLeft(uint8_t speed_left, uint8_t speed_right);
-    double normalizeAngle(double angle);
     void turn(double angle_diff, uint8_t speed);
     void straightLine(Direction direction, uint8_t speed, float initialYaw);
     bool areAnglesEqual(double angle1, double angle2, double tolerance = 0.01);

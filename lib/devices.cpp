@@ -7,6 +7,9 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////         MOTOR          //////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * Initialises the motor pins
+ */
 void Motor::init()
 {
     pinMode(PIN_MOTOR_A_PWM, OUTPUT);
@@ -20,11 +23,17 @@ void Motor::init()
     this->gyroaccel.init();
 }
 
+/**
+ * Returns the GyroAccel object
+ */
 GyroAccel Motor::getGyroAccel()
 {
     return this->gyroaccel;
 }
 
+/**
+ * Clamps the input speed between the MIN_SPEED and MAX_SPEED
+ */
 uint8_t Motor::normaliseSpeed(uint8_t speed)
 {
     speed = speed > MIN_SPEED ? speed : MIN_SPEED;
@@ -32,18 +41,27 @@ uint8_t Motor::normaliseSpeed(uint8_t speed)
     return speed;
 }
 
+/**
+ * Changes the right motor's direction and speed
+ */
 void Motor::rightMotor(uint8_t direction, uint8_t speed)
 {
     digitalWrite(PIN_MOTOR_A_IN, direction);
     analogWrite(PIN_MOTOR_A_PWM, speed);
 }
 
+/**
+ * Changes the left motor's direction and speed
+ */
 void Motor::leftMotor(uint8_t direction, uint8_t speed)
 {
     digitalWrite(PIN_MOTOR_B_IN, direction);
     analogWrite(PIN_MOTOR_B_PWM, speed);
 }
 
+/**
+ * One function for all simple movements.
+ */
 void Motor::move(Direction direction, uint8_t speed_left, uint8_t speed_right)
 {
     // Enable both motors
@@ -150,6 +168,11 @@ void Motor::stop()
     digitalWrite(PIN_MOTOR_STBY, LOW);
 }
 
+/**
+ * Turns the robot by a given angle at a given speed
+ * @param angle The angle to turn to (in degrees, 0-360 range)
+ * @param speed The speed at which to turn (0-255 range)
+ */
 void Motor::turn(double angle, uint8_t speed)
 {
     if (angle < 0)
@@ -160,12 +183,10 @@ void Motor::turn(double angle, uint8_t speed)
     float roll, pitch, yaw;
     this->gyroaccel.getRotation(&roll, &pitch, &yaw);
     float current_angle = yaw;
-    Serial.println(current_angle);
     Direction current_rotate_direction;
     double difference_plus = fmod((angle - current_angle + 360.0), 360.0);
     double difference_minus = fmod((current_angle - angle + 360.0), 360.0);
 
-    // Sélectionner la plus petite différence
     double differenceFinale = min(difference_plus, difference_minus);
     if (difference_plus < difference_minus)
     {
@@ -176,9 +197,6 @@ void Motor::turn(double angle, uint8_t speed)
         current_rotate_direction = LEFT;
     }
 
-    // Serial.println("Turning");
-    // Serial.println(angle);
-    // Serial.println(current_angle);
     uint16_t ind = 0;
 
     uint8_t old_speed = speed;
@@ -191,21 +209,6 @@ void Motor::turn(double angle, uint8_t speed)
         double difference_plus = fmod((angle - current_angle + 360.0), 360.0);
         double difference_minus = fmod((current_angle - angle + 360.0), 360.0);
         double differenceFinale = min(difference_plus, difference_minus);
-
-        // ind++;
-        // if (ind % 30 == 0)
-        // {
-
-        //     // Sélectionner la plus petite différence
-        //     Serial.println("Turning");
-        //     Serial.println(angle);
-        //     Serial.println(current_angle);
-        //     Serial.println(differenceFinale);
-        //     Serial.println("Speed: ");
-        //     Serial.println(old_speed);
-        //     Serial.println(speed);
-        //     Serial.println(new_speed);
-        // }
 
         Direction old_current_rotate_direction = current_rotate_direction;
         if (differenceFinale - overflow_angle < 0)
@@ -250,62 +253,44 @@ void Motor::turn(double angle, uint8_t speed)
     this->stop();
 }
 
-double Motor::normalizeAngle(double angle)
-{
-    if (angle < 0)
-    {
-        uint8_t n = floor(angle / 360.0);
-        angle += 360.0 * (n + 1);
-    }
-    angle = fmod(angle, 360.0);
-    return angle;
-}
-
-// int16_t Motor::getEulerAngles(float Yaw)
-// {
-//     int16_t gz = this->gyroaccel.getAngleZ();
-//     float this->GyZ = -(gz - gzo) / 131.0 * dt; // z轴角速度
-//     if (fabs(this->GyZ) < 0.05)
-//     {
-//         this->GyZ = 0.00;
-//     }
-//     agz += this->GyZ; // z轴角速度积分
-//     *Yaw = agz;
-// }
-
+/**
+ * Moves the robot in a straight line at a given speed
+ * @param direction The direction to move in (FORWARDS or BACKWARDS)
+ * @param speed The speed at which to move (0-255 range)
+ * @param initialYaw The initial yaw angle of the robot
+ */
 void Motor::straightLine(Direction direction, uint8_t speed, float initialYaw)
 {
-    // Constantes pour la régulation
-    const float targetAngle = 0.0;       // Angle cible pour un mouvement droit
-    const float angleTolerance = 2.0;    // Tolérance d'angle acceptable
-    const float correctionFactor = 0.05; // Facteur de correction de la vitesse
+    const float targetAngle = 0.0;
+    const float angleTolerance = 2.0;
+    const float correctionFactor = 0.05;
 
-    // Lire l'angle actuel du gyroscope
     float roll, pitch, currentYaw;
     this->gyroaccel.getRotation(&roll, &pitch, &currentYaw);
 
-    // Calculer la différence d'angle par rapport à la position initiale
     float angleDifference = this->getAnglesDiff(currentYaw, initialYaw);
 
-    // Ajuster la vitesse des roues en fonction de la dérive
     int speedLeft = speed;
     int speedRight = speed;
 
     if (angleDifference > angleTolerance)
     {
-        // Déviation vers la droite, ajuster la vitesse de la roue gauche
         speedLeft = static_cast<int>(speed * (1.0 - correctionFactor));
     }
     else if (angleDifference < -angleTolerance)
     {
-        // Déviation vers la gauche, ajuster la vitesse de la roue droite
         speedRight = static_cast<int>(speed * (1.0 - correctionFactor));
     }
 
-    // Appliquer la commande de mouvement avec les vitesses ajustées
     this->move(direction, speedLeft, speedRight);
 }
 
+/**
+ * Returns the difference between two angles
+ * @param angle1 First angle (in degrees from 0 to 360)
+ * @param angle2 Second angle (in degrees from 0 to 360)
+ * @return The difference between the two angles
+ */
 double Motor::getAnglesDiff(double angle1, double angle2)
 {
     double difference_plus = fmod((angle1 - angle2 + 360.0), 360.0);
@@ -314,6 +299,14 @@ double Motor::getAnglesDiff(double angle1, double angle2)
     return differenceFinale;
 }
 
+/**
+ * Compares two angles and returns true if their difference is less than or equal to a given tolerance.
+ * @param angle1 First angle
+ * @param angle2 Second angle
+ * @param tolerance Comparison tolerance
+ * @return True if angles are equal, false otherwise
+ *
+ */
 bool Motor::areAnglesEqual(double angle1, double angle2, double tolerance = 0.01)
 {
     double differenceFinale = this->getAnglesDiff(angle1, angle2);
@@ -322,23 +315,21 @@ bool Motor::areAnglesEqual(double angle1, double angle2, double tolerance = 0.01
     return abs(differenceFinale) <= tolerance;
 }
 
+/**
+ * Moves the robot to a given point at a given speed
+ * @param current_pos The current position of the robot
+ * @param target_pos The target position of the robot
+ * @param speed The speed at which to move
+ */
 void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
 {
     double distance = current_pos.distanceTo(target_pos);
-    Serial.println("Distance:");
-    Serial.println(distance);
-    Serial.println("Target:");
-    Serial.println(target_pos.getX());
-    Serial.println(target_pos.getY());
-    Serial.println("Current:");
-    Serial.println(current_pos.getX());
-    Serial.println(current_pos.getY());
 
     float roll, pitch, yaw;
     this->gyroaccel.getRotation(&roll, &pitch, &yaw);
     double angle = current_pos.calculateTargetAngle(target_pos);
     this->turn(angle, speed);
-    Serial.println("Turning done");
+    // Serial.println("Turning done");
     delay(1000);
     long start_time = millis();
     while (distance > 0.1)
@@ -365,6 +356,9 @@ void Motor::goToPoint(Pos current_pos, Pos target_pos, uint8_t speed)
     this->stop();
 }
 
+/**
+ * Moves the robot along a given path
+ */
 void Motor::testSquare()
 {
     // Pos pos1;
@@ -416,12 +410,20 @@ void Motor::testSquare()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////      ULTRASONIC     //////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Initialises the ultrasonic sensor pins
+ */
 void Ultrasonic::init()
 {
     pinMode(PIN_ECHO, INPUT);
     pinMode(PIN_TRIG, OUTPUT);
 }
 
+/**
+ * Sends a pulse to the ultrasonic sensor and measures the time it takes for the echo to return
+ * Print the distance to the nearest object in centimeters
+ */
 void Ultrasonic::test()
 {
     digitalWrite(PIN_TRIG, LOW); // Preparing to send the ultrasonic pulse
@@ -446,6 +448,10 @@ void Ultrasonic::test()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////      GYROSCOPE AND ACCELEROMETER      /////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Initialises the gyro and accelerometer
+ */
 void GyroAccel::init()
 {
     Wire.begin();                // Initialize comunication
@@ -483,6 +489,9 @@ void GyroAccel::init()
     this->last_time_rotation = micros();
 }
 
+/**
+ * Calibrates the IMU by calculating the error values for the accelerometer and gyroscope
+ */
 void GyroAccel::IMU_error()
 {
     Serial.println("Calibrating IMU...");
@@ -501,7 +510,6 @@ void GyroAccel::IMU_error()
         c++;
         // delay(2000 / nb);
     }
-    // Divide the sum by 200 to get the error value
     this->AcXError = ((float)axError) / (float)nb;
     this->AcYError = ((float)ayError) / (float)nb;
     this->AcZError = ((float)azError) / (float)nb;
@@ -521,7 +529,6 @@ void GyroAccel::IMU_error()
         c++;
         // delay(2000 / nb);
     }
-    // Divide the sum by 200 to get the error value
     this->GyXError = ((float)gxError) / (float)nb;
     this->GyYError = ((float)gyError) / (float)nb;
     this->GyZError = ((float)gzError) / (float)nb;
@@ -555,21 +562,13 @@ void GyroAccel::IMU_error()
     Serial.println(this->GyZError);
 }
 
-int16_t GyroAccel::getAngleX()
-{
-    return this->GyX;
-}
-
-int16_t GyroAccel::getAngleY()
-{
-    return this->GyY;
-}
-
-int16_t GyroAccel::getAngleZ()
-{
-    return this->GyZ;
-}
-
+/**
+ * Reads the gyroscope values from the MPU6050
+ * @param gX Pointer to the variable to store the gyroscope X value
+ * @param gY Pointer to the variable to store the gyroscope Y value
+ * @param gZ Pointer to the variable to store the gyroscope Z value
+ * @param calibrated Whether to apply the error correction or not
+ */
 void GyroAccel::getGyroscope(int16_t *gX, int16_t *gY, int16_t *gZ, bool calibrated = false)
 {
     Wire.beginTransmission(MPU);
@@ -588,6 +587,13 @@ void GyroAccel::getGyroscope(int16_t *gX, int16_t *gY, int16_t *gZ, bool calibra
     }
 }
 
+/**
+ * Reads the accelerometer values from the MPU6050
+ * @param aX Pointer to the variable to store the accelerometer X value
+ * @param aY Pointer to the variable to store the accelerometer Y value
+ * @param aZ Pointer to the variable to store the accelerometer Z value
+ * @param calibrated Whether to apply the error correction or not
+ */
 void GyroAccel::getAcceleration(int16_t *aX, int16_t *aY, int16_t *aZ, bool calibrated = false)
 {
     Wire.beginTransmission(MPU);
@@ -605,6 +611,12 @@ void GyroAccel::getAcceleration(int16_t *aX, int16_t *aY, int16_t *aZ, bool cali
     }
 }
 
+/**
+ * Reads the rotation values from the MPU6050
+ * @param roll Pointer to the variable to store the roll value
+ * @param pitch Pointer to the variable to store the pitch value
+ * @param yaw Pointer to the variable to store the yaw value
+ */
 void GyroAccel::getRotation(float *roll, float *pitch, float *yaw)
 {
     int16_t ax, ay, az;
@@ -668,6 +680,9 @@ void GyroAccel::getRotation(float *roll, float *pitch, float *yaw)
     *yaw = yaw_res;
 }
 
+/**
+ * Mahony filter update
+ */
 void GyroAccel::Mahony_update(float ax, float ay, float az, float gx, float gy, float gz, float deltat)
 {
     float Kp = 30.0;
@@ -679,10 +694,9 @@ void GyroAccel::Mahony_update(float ax, float ay, float az, float gx, float gy, 
     static float ix = 0.0, iy = 0.0, iz = 0.0; // integral feedback terms
     float tmp;
 
-    // Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
     tmp = ax * ax + ay * ay + az * az;
 
-    // ignore accelerometer if false (tested OK, SJR)
+    // ignore accelerometer if false
     if (tmp > 0.0)
     {
 
@@ -720,9 +734,6 @@ void GyroAccel::Mahony_update(float ax, float ay, float az, float gx, float gy, 
         gz += Kp * ez;
     }
 
-    // Integrate rate of change of quaternion, given by gyro term
-    // rate of change = current orientation quaternion (qmult) gyro rate
-
     deltat = 0.5 * deltat;
     gx *= deltat; // pre-multiply common factors
     gy *= deltat;
@@ -745,43 +756,46 @@ void GyroAccel::Mahony_update(float ax, float ay, float az, float gx, float gy, 
     this->q[3] = this->q[3] * recipNorm;
 }
 
-void GyroAccel::calculateCurrentDistance()
-{
-    double new_time = millis();
-    double dt = (new_time - this->last_time_acceleration) / 1000.0;
-    this->last_time_acceleration = new_time;
+/**
+ * Not working
+ */
+// void GyroAccel::calculateCurrentDistance()
+// {
+//     double new_time = millis();
+//     double dt = (new_time - this->last_time_acceleration) / 1000.0;
+//     this->last_time_acceleration = new_time;
 
-    int16_t ax, ay, az;
-    this->getAcceleration(&ax, &ay, &az, true);
-    if (abs(ax) > 0.15)
-    {
-        this->current_distance_x += ax * dt;
-    }
-    if (abs(ay) > 0.15)
-    {
-        this->current_distance_y += ay * dt;
-    }
-    if (abs(az) > 0.15)
-    {
-        this->current_distance_z += az * dt;
-    }
-}
+//     int16_t ax, ay, az;
+//     this->getAcceleration(&ax, &ay, &az, true);
+//     if (abs(ax) > 0.15)
+//     {
+//         this->current_distance_x += ax * dt;
+//     }
+//     if (abs(ay) > 0.15)
+//     {
+//         this->current_distance_y += ay * dt;
+//     }
+//     if (abs(az) > 0.15)
+//     {
+//         this->current_distance_z += az * dt;
+//     }
+// }
 
-void GyroAccel::getPosition(double *x, double *y, double *z)
-{
-    this->calculateCurrentDistance();
-    *x = this->current_distance_x;
-    *y = this->current_distance_y;
-    *z = this->current_distance_z;
-}
+// void GyroAccel::getPosition(double *x, double *y, double *z)
+// {
+//     this->calculateCurrentDistance();
+//     *x = this->current_distance_x;
+//     *y = this->current_distance_y;
+//     *z = this->current_distance_z;
+// }
 
+/**
+ * Some print tests of the gyro and accelerometer
+ */
 void GyroAccel::testPrint()
 {
-    double x, y, z;
-    this->getPosition(&x, &y, &z);
-
-    // double gx, gy, gz;
-    // this->getGyroscope(&gx, &gy, &gz, true);
+    int16_t gx, gy, gz;
+    this->getGyroscope(&gx, &gy, &gz, true);
 
     int16_t ax, ay, az;
     this->getAcceleration(&ax, &ay, &az, true);
@@ -800,13 +814,13 @@ void GyroAccel::testPrint()
     Serial.println("");
     Serial.println("");
     Serial.println("");
-    // Serial.println("Gyroscope:");
-    // Serial.print("X=");
-    // Serial.print(gx);
-    // Serial.print("| Y=");
-    // Serial.print(gy);
-    // Serial.print("| Z=");
-    // Serial.println(gz);
+    Serial.println("Gyroscope:");
+    Serial.print("X=");
+    Serial.print(gx);
+    Serial.print("| Y=");
+    Serial.print(gy);
+    Serial.print("| Z=");
+    Serial.println(gz);
     Serial.print("Acceleration:");
     Serial.print("X=");
     Serial.print(ax);
@@ -814,40 +828,61 @@ void GyroAccel::testPrint()
     Serial.print(ay);
     Serial.print("| Z=");
     Serial.println(az);
-    Serial.print("Position:");
-    Serial.print("X=");
-    Serial.print(x);
-    Serial.print("| Y=");
-    Serial.print(y);
-    Serial.print("| Z=");
-    Serial.println(z);
+    // Serial.print("Position:");
+    // Serial.print("X=");
+    // Serial.print(x);
+    // Serial.print("| Y=");
+    // Serial.print(y);
+    // Serial.print("| Z=");
+    // Serial.println(z);
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////      TARGET      //////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Initialises the position
+ */
 void Pos::init(double x, double y)
 {
     this->x = x;
     this->y = y;
 }
 
+/**
+ * Returns the X coordinate of the position
+ * @return The X coordinate
+ */
 double Pos::getX()
 {
     return this->x;
 }
 
+/**
+ * Returns the Y coordinate of the position
+ * @return The Y coordinate
+ */
 double Pos::getY()
 {
     return this->y;
 }
 
+/**
+ * Sets the X and Y coordinates of the position
+ * @param x The new X coordinate
+ * @param y The new Y coordinate
+ */
 void Pos::set(double x, double y)
 {
     this->x = x;
     this->y = y;
 }
 
+/**
+ * Returns the distance to another position
+ * @param pos The other position
+ * @return The distance to the other position
+ */
 double Pos::distanceTo(Pos pos)
 {
     double x_diff = pos.getX() - this->x;
@@ -855,13 +890,9 @@ double Pos::distanceTo(Pos pos)
     return sqrt(x_diff * x_diff + y_diff * y_diff);
 }
 
-Pos Pos::translate(Pos point)
-{
-    Pos new_pos = Pos();
-    new_pos.init(point.getX() - this->x, point.getY() - this->y);
-    return new_pos;
-}
-
+/**
+ * Prints the position to the serial monitor
+ */
 void Pos::toString()
 {
     Serial.print("X=");
@@ -870,6 +901,11 @@ void Pos::toString()
     Serial.println(this->y);
 }
 
+/**
+ * Calculates the angle to another position
+ * @param pos The other position
+ * @return The angle to the other position
+ */
 double Pos::calculateTargetAngle(Pos pos)
 {
     double x_diff = pos.getX() - this->x;
@@ -881,6 +917,10 @@ double Pos::calculateTargetAngle(Pos pos)
 //////////////////////////////////////////      PATH      ////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Initialises the path
+ * @param path_list The list of positions in the path
+ */
 void Path::init(Pos path_list[10])
 {
     for (int i = 0; i < 10; i++)
@@ -889,6 +929,11 @@ void Path::init(Pos path_list[10])
     }
 }
 
+/**
+ * Runs the path
+ * @param motor The motor object to use
+ * @param speed The speed at which to move
+ */
 void Path::run(Motor motor, uint8_t speed)
 {
     for (int i = 0; i < 10; i++)
@@ -897,16 +942,8 @@ void Path::run(Motor motor, uint8_t speed)
         {
             break;
         }
-
-        // double x, y, z;
-        // motor.getGyroAccel().getPosition(&x, &y, &z);
         Pos current_pos = Pos();
         current_pos.init(0, 0);
-        Serial.println("Moving to next point");
-        Serial.print("X=");
-        Serial.print(this->path_list[i].getX());
-        Serial.print("| Y=");
-        Serial.println(this->path_list[i].getY());
 
         motor.goToPoint(current_pos, this->path_list[i], speed);
     }
