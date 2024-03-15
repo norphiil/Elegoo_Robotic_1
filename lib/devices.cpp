@@ -21,6 +21,59 @@ void Motor::init()
     // Enable the gyroaccel
     this->gyroaccel = GyroAccel();
     this->gyroaccel.init();
+
+    this->ultrasonic = Ultrasonic();
+    this->ultrasonic.init();
+
+    this->servo = Servo();
+    this->servo.init();
+}
+
+void Motor::obstacle_stop()
+{
+    float roll, pitch, currentYaw;
+    this->gyroaccel.getRotation(&roll, &pitch, &currentYaw);
+    this->straightLine(FORWARDS, 100, currentYaw);
+    bool obstacle_detected = false;
+    while (!obstacle_detected)
+    {
+        uint16_t distance = 0;
+        this->ultrasonic.get_distance();
+        if (distance < 20)
+        {
+            obstacle_detected = true;
+            this->stop();
+        }
+    }
+}
+
+void Motor::obstacle_avoidance()
+{
+    float roll, pitch, currentYaw;
+    this->gyroaccel.getRotation(&roll, &pitch, &currentYaw);
+    this->straightLine(FORWARDS, 100, currentYaw);
+    unsigned long start_time = millis();
+    bool stop = false;
+    while (!stop)
+    {
+        uint16_t distance = this->ultrasonic.get_distance();
+        if (distance < 20)
+        {
+            this->stop();
+            uint8_t angle_way = this->servo.find_way(this->ultrasonic);
+            this->servo.setAngle(90);
+            if (angle_way >= 0 && angle_way <= 90)
+            {
+                angle_way = 90 - angle_way;
+            }
+            else if (angle_way > 90 && angle_way <= 180)
+            {
+                angle_way = 360 - (angle_way - 90);
+            }
+            this->turn(angle_way, 100);
+            this->straightLine(FORWARDS, 100, currentYaw);
+        }
+    }
 }
 
 /**
@@ -395,6 +448,26 @@ void Ultrasonic::init()
     pinMode(PIN_TRIG, OUTPUT);
 }
 
+uint16_t Ultrasonic::get_distance()
+{
+    digitalWrite(PIN_TRIG, LOW); // Preparing to send the ultrasonic pulse
+    delayMicroseconds(2);        // Waiting for above pin to change
+
+    digitalWrite(PIN_TRIG, HIGH); // Send the pulse
+    delayMicroseconds(10);        // Wait for it to send
+
+    digitalWrite(PIN_TRIG, LOW); // Go back to prepare mode
+
+    long duration = pulseIn(PIN_ECHO, HIGH);
+
+    if (duration > 0)
+    {
+        unsigned int distanceCm = (duration / 58);
+        return distanceCm;
+    }
+    return 0;
+}
+
 /**
  * Sends a pulse to the ultrasonic sensor and measures the time it takes for the echo to return
  * Print the distance to the nearest object in centimeters
@@ -423,10 +496,10 @@ void Ultrasonic::test()
         if (duration > 0)
         {
             unsigned int distanceCm = (duration / 58);
-            if (distanceCm > 465)
-            {
-                continue;
-            }
+            // if (distanceCm > 465)
+            // {
+            //     continue;
+            // }
             // uint16_t distanceCm = ((duration * 0.034) / 2);
             if (distanceCm < min_distance)
             {
@@ -453,118 +526,117 @@ void Ultrasonic::test()
     }
 }
 
-void Ultrasonic::calculate_field_of_view(Servo servo)
-{
+// void Ultrasonic::calculate_field_of_view(Servo servo)
+// {
 
-    auto calculate_distance_BC = [](double AB, double angle_BAC, double AC)
-    {
-        double angle_rad = angle_BAC * M_PI / 180.0; // Convert angle to radians
-        double BC_squared = pow(AB, 2) + pow(AC, 2) - 2 * AB * AC * cos(angle_rad);
-        return sqrt(BC_squared);
-    };
-    auto get_distant_and_angle = [](uint16_t *object_distance, uint16_t *last_object_distance, uint8_t *angle, int i)
-    {
-        digitalWrite(PIN_TRIG, LOW); // Preparing to send the ultrasonic pulse
-        delayMicroseconds(2);        // Waiting for above pin to change
+//     auto calculate_distance_BC = [](double AB, double angle_BAC, double AC)
+//     {
+//         double angle_rad = angle_BAC * M_PI / 180.0; // Convert angle to radians
+//         double BC_squared = pow(AB, 2) + pow(AC, 2) - 2 * AB * AC * cos(angle_rad);
+//         return sqrt(BC_squared);
+//     };
+//     auto get_distant_and_angle = [](uint16_t *object_distance, uint16_t *last_object_distance, uint8_t *angle, int i)
+//     {
+//         digitalWrite(PIN_TRIG, LOW); // Preparing to send the ultrasonic pulse
+//         delayMicroseconds(2);        // Waiting for above pin to change
 
-        digitalWrite(PIN_TRIG, HIGH); // Send the pulse
-        delayMicroseconds(10);        // Wait for it to send
+//         digitalWrite(PIN_TRIG, HIGH); // Send the pulse
+//         delayMicroseconds(10);        // Wait for it to send
 
-        digitalWrite(PIN_TRIG, LOW); // Go back to prepare mode
+//         digitalWrite(PIN_TRIG, LOW); // Go back to prepare mode
 
-        long duration = pulseIn(PIN_ECHO, HIGH);
+//         long duration = pulseIn(PIN_ECHO, HIGH);
 
-        /*
-         * Speed of sound is 340m/s or 0.034cm/µs
-         * The pulse travels to the object and back, so we divide by 2
-         */
-        if (duration > 0)
-        {
-            unsigned int distanceCm = (duration / 58);
-            if (distanceCm > 465)
-            {
-            }
-            else
-            {
+//         /*
+//          * Speed of sound is 340m/s or 0.034cm/µs
+//          * The pulse travels to the object and back, so we divide by 2
+//          */
+//         if (duration > 0)
+//         {
+//             unsigned int distanceCm = (duration / 58);
+//             if (distanceCm > 465)
+//             {
+//             }
+//             else
+//             {
 
-                if (*object_distance == 0)
-                {
-                    *object_distance = distanceCm;
-                }
-                else
-                {
-                    int tmp_distance = *object_distance;
-                    Serial.print("distanceCm: ");
-                    Serial.println(distanceCm);
-                    Serial.print("object_distance: ");
-                    Serial.println(tmp_distance);
-                    if (abs(distanceCm - tmp_distance) > 10)
-                    {
-                        *angle = i;
-                    }
-                    else
-                    {
-                        *last_object_distance = distanceCm;
-                    }
-                }
-            }
-        }
-    };
-    uint16_t left_object_distance = 0;
-    uint16_t last_left_object_distance = 0;
-    uint16_t right_object_distance = 0;
-    uint16_t last_right_object_distance = 0;
-    uint8_t left_angle = 0;
-    uint8_t right_angle = 0;
-    unsigned long start_time = millis();
-    for (int i = 90;
-         i < 180; i++)
-    {
-        servo.setAngle(i);
-        delay(15);
-        get_distant_and_angle(&right_object_distance, &last_right_object_distance, &right_angle, i);
-        delay(15);
-        if (right_angle != 0)
-        {
-            break;
-        }
-    }
-    servo.setAngle(90);
-    delay(10000);
+//                 if (*object_distance == 0)
+//                 {
+//                     *object_distance = distanceCm;
+//                 }
+//                 else
+//                 {
+//                     int tmp_distance = *object_distance;
+//                     Serial.print("distanceCm: ");
+//                     Serial.println(distanceCm);
+//                     Serial.print("object_distance: ");
+//                     Serial.println(tmp_distance);
+//                     if (abs(distanceCm - tmp_distance) > 20)
+//                     {
+//                         *angle = i;
+//                     }
+//                     else
+//                     {
+//                         *last_object_distance = distanceCm;
+//                     }
+//                 }
+//             }
+//         }
+//     };
+//     uint16_t left_object_distance = 0;
+//     uint16_t last_left_object_distance = 0;
+//     uint16_t right_object_distance = 0;
+//     uint16_t last_right_object_distance = 0;
+//     uint8_t left_angle = 0;
+//     uint8_t right_angle = 0;
+//     unsigned long start_time = millis();
+//     for (int i = 90;
+//          i < 180; i++)
+//     {
+//         servo.setAngle(i);
+//         delay(15);
+//         get_distant_and_angle(&right_object_distance, &last_right_object_distance, &right_angle, i);
+//         delay(15);
+//         if (right_angle != 0)
+//         {
+//             break;
+//         }
+//     }
+//     servo.setAngle(90);
+//     delay(1000);
+//     for (int i = 90;
+//          i > 0; i--)
+//     {
+//         servo.setAngle(i);
+//         delay(15);
+//         get_distant_and_angle(&left_object_distance, &last_left_object_distance, &left_angle, i);
+//         delay(15);
+//         if (left_angle != 0)
+//         {
+//             break;
+//         }
+//     }
+//     servo.setAngle(90);
 
-    for (int i = 90;
-         i > 0; i--)
-    {
-        servo.setAngle(i);
-        delay(15);
-        get_distant_and_angle(&left_object_distance, &last_left_object_distance, &left_angle, i);
-        delay(15);
-        if (left_angle != 0)
-        {
-            break;
-        }
-    }
-    servo.setAngle(90);
-
-    Serial.print("left_test=");
-    Serial.print(left_object_distance);
-    Serial.print("cm");
-    Serial.print(" ");
-    Serial.print(left_angle);
-    Serial.print("°");
-    Serial.print(" ");
-    Serial.print(calculate_distance_BC(left_object_distance, abs(left_angle - 90), last_left_object_distance));
-    Serial.println("cm");
-    Serial.print("right_test=");
-    Serial.print(right_object_distance);
-    Serial.print("cm");
-    Serial.print(" ");
-    Serial.print(right_angle);
-    Serial.print("°");
-    Serial.print(" ");
-    Serial.print(calculate_distance_BC(right_object_distance, abs(right_angle - 90), last_right_object_distance));
-    Serial.println("cm");
-}
+//     Serial.print("left_test=");
+//     Serial.print(left_object_distance);
+//     Serial.print("cm");
+//     Serial.print(" ");
+//     Serial.print(left_angle);
+//     Serial.print("°");
+//     Serial.print(" ");
+//     Serial.print(calculate_distance_BC(left_object_distance, abs(left_angle - 90), last_left_object_distance));
+//     Serial.println("cm");
+//     Serial.print("right_test=");
+//     Serial.print(right_object_distance);
+//     Serial.print("cm");
+//     Serial.print(" ");
+//     Serial.print(right_angle);
+//     Serial.print("°");
+//     Serial.print(" ");
+//     Serial.print(calculate_distance_BC(right_object_distance, abs(right_angle - 90), last_right_object_distance));
+//     Serial.println("cm");
+// }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////      SERVO     ///////////////////////////////////////////////
@@ -600,6 +672,23 @@ void Servo::setAngle(uint8_t new_angle)
             delay(15);
         }
     }
+}
+
+uint8_t Servo::find_way(Ultrasonic ultrasonic)
+{
+    uint16_t max_object_distance = 0;
+    uint8_t angle_way = 180;
+    for (int i = 0; i < 180; i++)
+    {
+        this->setAngle(i);
+        uint16_t object_distance = ultrasonic.get_distance();
+        if (object_distance > max_object_distance)
+        {
+            max_object_distance = object_distance;
+            angle_way = i;
+        }
+    }
+    return angle_way;
 }
 
 /**
@@ -1204,17 +1293,45 @@ void IR::init()
     pinMode(PIN_IR_R, INPUT);
 }
 
+void IR::get_simple_motor_speed(uint16_t *speed_left_motor, uint16_t *speed_right_motor)
+{
+    int ir_value_left = analogRead(PIN_IR_L);
+    int ir_value_middle = analogRead(PIN_IR_M);
+    int ir_value_right = analogRead(PIN_IR_R);
+
+    if (ir_value_left > 100)
+    {
+        speed_left_motor = 0;
+        speed_right_motor = 100;
+    }
+    else if (ir_value_right > 100)
+    {
+        speed_left_motor = 100;
+        speed_right_motor = 0;
+    }
+    else if (ir_value_middle > 100)
+    {
+        speed_left_motor = 100;
+        speed_right_motor = 100;
+    }
+    else
+    {
+        speed_left_motor = 0;
+        speed_right_motor = 0;
+    }
+}
+
 void IR::test()
 {
-    int ir_value = analogRead(PIN_IR_L);
+    int ir_value_left = analogRead(PIN_IR_L);
+    int ir_value_middle = analogRead(PIN_IR_M);
+    int ir_value_right = analogRead(PIN_IR_R);
     Serial.print("IR_L=");
-    Serial.println(ir_value);
-    ir_value = analogRead(PIN_IR_M);
-    Serial.print("IR_M=");
-    Serial.println(ir_value);
-    ir_value = analogRead(PIN_IR_R);
-    Serial.print("IR_R=");
-    Serial.println(ir_value);
+    Serial.print(ir_value_left);
+    Serial.print("| IR_M=");
+    Serial.print(ir_value_middle);
+    Serial.print("| IR_R=");
+    Serial.println(ir_value_right);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////

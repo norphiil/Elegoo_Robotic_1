@@ -16,10 +16,11 @@ void setup()
   Serial.begin(9600);
   Serial.println(" Starting...");
   motor.init();
-  ultrasonic.init();
-  servo.init();
+  // ultrasonic.init();
+  // servo.init();
   delay(2000);
-  ultrasonic.test();
+  motor.obstacle_avoidance();
+  // ultrasonic.test();
   // ultrasonic.calculate_field_of_view(servo);
   // servo.test();
   // delay(2000);

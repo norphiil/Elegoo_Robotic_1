@@ -12,12 +12,31 @@ enum Direction
     BACKWARDS_LEFT
 };
 
+class Ultrasonic
+{
+public:
+    void init(void);
+    // test to get the distance every second
+    void test(void);
+    // void get(uint16_t *get);
+    // void calculate_field_of_view(Servo servo);
+    uint16_t get_distance(void);
+
+private:
+    // unsigned int microseconds_to_cm(unsigned int microseconds);
+#define PIN_SERVO 10     // Pin responsible for the servo motor
+#define PIN_TRIG 13      // Pin responsible for the trigger pulse. LOW = prepare for pulse, HIGH = send pulse
+#define PIN_ECHO 12      // Pin which gives us the time until the echo pulse was received, HIGH = receive the value
+#define MAX_DISTANCE 400 // cm
+};
+
 class Servo
 {
 public:
     void init(void);
     void test(void);
     void setAngle(uint8_t new_angle);
+    uint8_t find_way(Ultrasonic ultrasonic);
 
 private:
     void setAngleBrute(uint8_t new_angle);
@@ -97,9 +116,13 @@ public:
     void goToPoint(Pos current_pos, Pos target_pos, uint8_t speed);
     void testSquare(void);
     GyroAccel getGyroAccel(void);
+    void obstacle_stop(void);
+    void obstacle_avoidance(void);
 
 private:
     GyroAccel gyroaccel;
+    Ultrasonic ultrasonic;
+    Servo servo;
 
     // Clamps the input speed between the MIN_SPEED and MAX_SPEED
     uint8_t normaliseSpeed(uint8_t speed);
@@ -129,23 +152,6 @@ private:
 #define MOTOR_BACKWARDS 0 // to indicate the direction
 };
 
-class Ultrasonic
-{
-public:
-    void init(void);
-    // test to get the distance every second
-    void test(void);
-    // void get(uint16_t *get);
-    void calculate_field_of_view(Servo servo);
-
-private:
-    // unsigned int microseconds_to_cm(unsigned int microseconds);
-#define PIN_SERVO 10     // Pin responsible for the servo motor
-#define PIN_TRIG 13      // Pin responsible for the trigger pulse. LOW = prepare for pulse, HIGH = send pulse
-#define PIN_ECHO 12      // Pin which gives us the time until the echo pulse was received, HIGH = receive the value
-#define MAX_DISTANCE 400 // cm
-};
-
 class Path
 {
 public:
@@ -161,6 +167,7 @@ class IR
 public:
     void init(void);
     void test(void);
+    void get_simple_motor_speed(uint16_t *speed_left_motor, uint16_t *speed_right_motor);
 
 private:
 #define PIN_IR_L A2 // Left IR Sensor
