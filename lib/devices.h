@@ -12,6 +12,18 @@ enum Direction
     BACKWARDS_LEFT
 };
 
+class Servo
+{
+public:
+    void init(void);
+    void test(void);
+    void setAngle(uint8_t new_angle);
+
+private:
+    void setAngleBrute(uint8_t new_angle);
+    uint8_t angle;
+};
+
 class SimplePID
 {
 public:
@@ -124,6 +136,7 @@ public:
     // test to get the distance every second
     void test(void);
     // void get(uint16_t *get);
+    void calculate_field_of_view(Servo servo);
 
 private:
     // unsigned int microseconds_to_cm(unsigned int microseconds);
@@ -143,10 +156,14 @@ private:
     Pos path_list[100];
 };
 
-class Servo
+class IR
 {
 public:
     void init(void);
     void test(void);
-    void setAngle(uint8_t angle);
+
+private:
+#define PIN_IR_L A2 // Left IR Sensor
+#define PIN_IR_M A1 // Middle IR Sensor
+#define PIN_IR_R A0 // Right IR Sensor
 };

@@ -19,9 +19,11 @@ void setup()
   ultrasonic.init();
   servo.init();
   delay(2000);
-  servo.test();
-  delay(2000);
-  motor.testSquare();
+  ultrasonic.test();
+  // ultrasonic.calculate_field_of_view(servo);
+  // servo.test();
+  // delay(2000);
+  // motor.testSquare();
   // gyroAccel.init();
   // motor.move(FORWARDS, 100);
   // delay(1000);
@@ -61,7 +63,6 @@ void setup()
 
 void loop()
 {
-  // ultrasonic.test();
   // gyroAccel.testPrint();
   // gyroAccel.calculateData();
   // put your main code here, to run repeatedly:
