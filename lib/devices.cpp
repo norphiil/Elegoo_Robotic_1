@@ -49,9 +49,11 @@ void Motor::obstacle_stop()
 
 void Motor::obstacle_avoidance()
 {
-    float roll, pitch, currentYaw;
-    this->gyroaccel.getRotation(&roll, &pitch, &currentYaw);
-    this->straightLine(FORWARDS, 100, currentYaw);
+    this->servo.setAngle(90);
+    // float roll, pitch, currentYaw;
+    // this->gyroaccel.getRotation(&roll, &pitch, &currentYaw);
+    // this->straightLine(FORWARDS, 100, currentYaw);
+    this->move(FORWARDS, 100, 100);
     unsigned long start_time = millis();
     bool stop = false;
     while (!stop)
@@ -64,14 +66,17 @@ void Motor::obstacle_avoidance()
             this->servo.setAngle(90);
             if (angle_way >= 0 && angle_way <= 90)
             {
-                angle_way = 90 - angle_way;
+                this->move(RIGHT, 100, 100);
             }
-            else if (angle_way > 90 && angle_way <= 180)
+            else
             {
-                angle_way = 360 - (angle_way - 90);
+                this->move(LEFT, 100, 100);
             }
-            this->turn(angle_way, 100);
-            this->straightLine(FORWARDS, 100, currentYaw);
+            delay(500);
+        }
+        else
+        {
+            this->move(FORWARDS, 100, 100);
         }
     }
 }
@@ -661,7 +666,7 @@ void Servo::setAngle(uint8_t new_angle)
         for (int i = this->angle; i > new_angle; i--)
         {
             this->setAngleBrute(i);
-            delay(15);
+            // delay(15);
         }
     }
     else
@@ -669,7 +674,7 @@ void Servo::setAngle(uint8_t new_angle)
         for (int i = this->angle; i < new_angle; i++)
         {
             this->setAngleBrute(i);
-            delay(15);
+            // delay(15);
         }
     }
 }
@@ -678,15 +683,35 @@ uint8_t Servo::find_way(Ultrasonic ultrasonic)
 {
     uint16_t max_object_distance = 0;
     uint8_t angle_way = 180;
+    uint16_t left_average = 0;
+    uint16_t right_average = 0;
     for (int i = 0; i < 180; i++)
     {
         this->setAngle(i);
-        uint16_t object_distance = ultrasonic.get_distance();
-        if (object_distance > max_object_distance)
+        if (i < 90)
         {
-            max_object_distance = object_distance;
-            angle_way = i;
+            left_average += ultrasonic.get_distance();
         }
+        else
+        {
+            right_average += ultrasonic.get_distance();
+        }
+        // uint16_t object_distance = ultrasonic.get_distance();
+        // if (object_distance > max_object_distance)
+        // {
+        //     max_object_distance = object_distance;
+        //     angle_way = i;
+        // }
+    }
+    left_average /= 90;
+    right_average /= 90;
+    if (left_average > right_average)
+    {
+        angle_way = 0;
+    }
+    else
+    {
+        angle_way = 180;
     }
     return angle_way;
 }
