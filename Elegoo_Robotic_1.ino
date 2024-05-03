@@ -3,14 +3,11 @@
  * an example error direction (22), and stops the robot at the end.
  * It moves in each direction for 1 second.
  */
-
-#include "devices.h"
+#include <Arduino.h>
+#include "device_motor.h"
 #include <avr/wdt.h>
 
 Motor motor;
-GyroAccel gyroAccel;
-Ultrasonic ultrasonic;
-Servo servo;
 
 unsigned long lastTime = 0;
 
@@ -19,11 +16,8 @@ void setup()
   Serial.begin(9600);
   Serial.println(" Starting...");
   motor.init();
-  // ultrasonic.init();
-  // servo.init();
   delay(2000);
   lastTime = millis();
-  // motor.obstacle_avoidance();
 
   // float roll, pitch, yaw;
   // motor.turn(90 * 1, 100);
