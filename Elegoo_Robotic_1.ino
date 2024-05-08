@@ -28,8 +28,12 @@ void setup()
   // delay(2000);
   // motor.turn(90 * 4, 100);
   // delay(2000);
-
-  motor.straightLine(50, 0);
+  float roll, pitch, currentYaw;
+  motor.getGyroAccel()->getRotation(&roll, &pitch, &currentYaw);
+  delay(1000);
+  motor.getGyroAccel()->getRotation(&roll, &pitch, &currentYaw);
+  delay(100);
+  motor.straightLine(50, currentYaw);
   delay(10);
 }
 

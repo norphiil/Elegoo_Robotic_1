@@ -40,17 +40,60 @@ void Motor::init()
 
     this->servo.setAngle(90);
 
-    Cell forwardCell = maze.getCell(ceil(forwardDistance / cell_width), 0);
+    Cell forwardCell = *maze.getCell(ceil(forwardDistance / cell_width), 0);
     forwardCell.setTopWall(true);
-    maze.setCell(ceil(forwardDistance / cell_width), 0, forwardCell);
+    maze.setCell(ceil(forwardDistance / cell_width), 0, &forwardCell);
 
-    Cell leftCell = maze.getCell(0, ceil(leftDistance / cell_width));
+    Cell leftCell = *maze.getCell(0, ceil(leftDistance / cell_width));
     leftCell.setLeftWall(true);
-    maze.setCell(0, ceil(leftDistance / cell_width), leftCell);
+    maze.setCell(0, ceil(leftDistance / cell_width), &leftCell);
 
-    Cell rightCell = maze.getCell(0, ceil(rightDistance / cell_width));
+    Cell rightCell = *maze.getCell(0, ceil(rightDistance / cell_width));
     rightCell.setRightWall(true);
-    maze.setCell(0, ceil(rightDistance / cell_width), rightCell);
+    maze.setCell(0, ceil(rightDistance / cell_width), &rightCell);
+
+    for (int i = 0; i < 6; i++)
+    {
+        for (int j = 0; j < 6; j++)
+        {
+            Cell currentCell = *maze.getCell(i, j);
+            currentCell.setVal(i * 6 + j);
+            Serial.print("Cell (");
+            Serial.print(i);
+            Serial.print(" ");
+            Serial.print(j);
+            Serial.print(" ");
+            Serial.print(currentCell.getVal());
+            Serial.println(") ");
+        }
+        Serial.println();
+    }
+
+    Serial.println("---------------------------------------------------------");
+
+    for (int i = 0; i < 6; i++)
+    {
+        for (int j = 0; j < 6 - 1; j++)
+        {
+            maze.setCell(i, j, maze.getCell(i, j + 1));
+        }
+    }
+
+    for (int i = 0; i < 6; i++)
+    {
+        for (int j = 0; j < 6; j++)
+        {
+            Cell currentCell = *maze.getCell(i, j);
+            Serial.print("Cell (");
+            Serial.print(i);
+            Serial.print(" ");
+            Serial.print(j);
+            Serial.print(" ");
+            Serial.print(currentCell.getVal());
+            Serial.println(") ");
+        }
+        Serial.println();
+    }
 }
 
 /**
@@ -290,24 +333,27 @@ void Motor::turn(double angle, uint8_t speed)
 
 /**
  * Moves the robot in a straight line at a given speed
- * @param direction The direction to move in (FORWARDS or BACKWARDS)
  * @param speed The speed at which to move (0-255 range)
- * @param initialYaw The initial yaw angle of the robot
+ * @param targetYaw The target yaw angle of the robot
  */
 void Motor::straightLine(uint8_t speed, float targetYaw)
 {
     unsigned long lastTime = millis();
-    // PID constants (adjust these values based on your car)
-    const float Kp = 0.33f;
-    const float Ki = 2.47f;
-    const float Kd = 0.01f;
+    // Adjusted PID constants
+    const float Kp = 6.2f; // Proportional gain
+    const float Ki = 0.4f; // Integral gain
+    const float Kd = 1.0f; // Derivative gain
 
-    const int8_t maxSpeed = 50;
+    const int8_t maxSpeed = 50; // Maximum speed
 
     float errorYaw = 0.0f;
     float integralYaw = 0.0f;
     float derivativeYaw = 0.0f;
     float previousYaw = 0.0f;
+
+    // Integral windup guard
+    const float integralMax = 5.0f;
+    const float integralMin = -5.0f;
 
     while (true)
     {
@@ -315,49 +361,64 @@ void Motor::straightLine(uint8_t speed, float targetYaw)
         const int delta = currentTime - lastTime;
         lastTime = currentTime;
 
-        // Serial.print("delta: ");
-        // Serial.println(delta);
-
         float roll, pitch, currentYaw;
         this->gyroaccel.getRotation(&roll, &pitch, &currentYaw);
         // Serial.println(currentYaw);
         // Calculate error in yaw
-        errorYaw = targetYaw - currentYaw; // You need to get currentYaw from your sensor or encoder
+        errorYaw = (int)this->gyroaccel.getAnglesDiff(currentYaw, targetYaw);
+        // Serial.print(currentYaw);
+        // Serial.print(" | ");
+        // Serial.print(targetYaw);
+        // Serial.print(" | ");
+        // Serial.println(errorYaw);
 
-        // Calculate integral of error
+        // Calculate integral of error with windup guard
         integralYaw += errorYaw * delta;
+        // integralYaw = constrain(integralYaw, integralMin, integralMax);
+        if (integralYaw > integralMax)
+        {
+            integralYaw = integralMax;
+        }
+        else if (integralYaw < integralMin)
+        {
+            integralYaw = integralMin;
+        }
 
-        // Calculate derivative of error
-        derivativeYaw = (errorYaw - previousYaw) / delta;
+        // Calculate derivative of error based on measurement
+        derivativeYaw = this->gyroaccel.getAnglesDiff(currentYaw, previousYaw) / delta;
 
         // Update previousYaw for next iteration
-        previousYaw = errorYaw;
+        previousYaw = currentYaw;
 
-        // Calculate PID output
-        float pidOutput = abs(Kp * errorYaw + Ki * integralYaw + Kd * derivativeYaw);
+        // Calculate PID output with saturation
+        float pidOutput = Kp * errorYaw + Ki * integralYaw + Kd * derivativeYaw;
+        // pidOutput = constrain(pidOutput, -maxSpeed, maxSpeed);
 
         // Adjust motor speed
         int8_t leftSpeed = speed + pidOutput;
-        int8_t rightSpeed = speed - pidOutput;
-
         if (leftSpeed > maxSpeed)
         {
             leftSpeed = maxSpeed;
         }
+        else if (leftSpeed < -maxSpeed)
+        {
+            leftSpeed = -maxSpeed;
+        }
+        int8_t rightSpeed = speed - pidOutput;
         if (rightSpeed > maxSpeed)
         {
             rightSpeed = maxSpeed;
         }
+        else if (rightSpeed < -maxSpeed)
+        {
+            rightSpeed = -maxSpeed;
+        }
+        Serial.print("leftSpeed: ");
+        Serial.println(leftSpeed);
+        Serial.print("rightSpeed: ");
+        Serial.println(rightSpeed);
 
         // Move the car with adjusted speed and steering direction
         this->move(FORWARDS, leftSpeed, rightSpeed);
-        Serial.print("LEFT ");
-        Serial.println(leftSpeed);
-        Serial.print("PidLEFT: ");
-        Serial.println(pidOutput);
-        Serial.print("RIGHT ");
-        Serial.println(rightSpeed);
-
-        // Optional: Implement additional logic for stopping or changing behavior
     }
 }

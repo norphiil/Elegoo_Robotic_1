@@ -15,25 +15,36 @@ void Maze::init(int rows, int cols)
     }
 }
 
-void Maze::print()
+void Maze::shiftLeft()
 {
     for (int i = 0; i < this->rows; i++)
     {
-        for (int j = 0; j < this->cols; j++)
+        for (int j = 0; j < this->cols - 1; j++)
         {
-            this->maze[i][j].print();
+            this->maze[i][j] = this->maze[i][j + 1];
         }
     }
 }
 
-void Maze::setCell(int row, int col, Cell cell)
+void Maze::shiftRight()
 {
-    maze[row][col] = cell;
+    for (int i = 0; i < this->rows; i++)
+    {
+        for (int j = this->cols - 1; j > 0; j--)
+        {
+            this->maze[i][j] = this->maze[i][j - 1];
+        }
+    }
 }
 
-Cell Maze::getCell(int row, int col)
+void Maze::setCell(int row, int col, Cell *cell)
 {
-    return maze[row][col];
+    maze[row][col] = *cell;
+}
+
+Cell *Maze::getCell(int row, int col)
+{
+    return &maze[row][col];
 }
 
 void Cell::setLeftWall(bool wall)
@@ -61,16 +72,27 @@ void Cell::setVal(int val)
     this->value = val;
 }
 
-void Cell::print()
+bool Cell::getBottomWall(void)
 {
-    // Serial.print("L:");
-    // Serial.print(leftWall);
-    // Serial.print(" R:");
-    // Serial.print(rightWall);
-    // Serial.print(" T:");
-    // Serial.print(topWall);
-    // Serial.print(" B:");
-    // Serial.print(bottomWall);
-    // Serial.print(" V:");
-    // Serial.println(value);
+    return this->bottomWall;
+}
+
+bool Cell::getLeftWall(void)
+{
+    return this->leftWall;
+}
+
+bool Cell::getRightWall(void)
+{
+    return this->rightWall;
+}
+
+bool Cell::getTopWall(void)
+{
+    return this->topWall;
+}
+
+int Cell::getVal(void)
+{
+    return this->value;
 }

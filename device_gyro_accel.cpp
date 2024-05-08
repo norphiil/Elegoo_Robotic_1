@@ -80,10 +80,12 @@ void GyroAccel::calibrate()
  */
 double GyroAccel::getAnglesDiff(double angle1, double angle2)
 {
-    double difference_plus = fmod((angle1 - angle2 + 360.0), 360.0);
-    double difference_minus = fmod((angle2 - angle1 + 360.0), 360.0);
-    double differenceFinale = min(difference_plus, difference_minus);
-    return differenceFinale;
+    double difference = fmod((angle1 - angle2 + 360.0), 360.0);
+    if (difference > 180.0)
+    {
+        difference -= 360.0; // This adjusts the difference to be negative if it's a left turn
+    }
+    return difference; // Positive if to the right, negative if to the left
 }
 
 /**
