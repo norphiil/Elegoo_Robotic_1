@@ -16,8 +16,6 @@ void GyroAccel::init()
     Wire.write(0b00000000);      // Make reset - place a 0 into the 6B register
     Wire.endTransmission(true);  // end the transmission
 
-    delay(20);
-
     int accel_2g_address = 0x00;
     int accel_4g_address = 0x01;
     int accel_8g_address = 0x02;
@@ -38,10 +36,8 @@ void GyroAccel::init()
     // Wire.write(0x1C); // Talk to the ACCEL_CONFIG register (1C hex)
     // Wire.write(accel_16g_address);
     // Wire.endTransmission();
-    delay(20);
 
     this->IMU_error();
-    delay(20);
     this->last_time_rotation = micros();
 }
 
@@ -68,7 +64,6 @@ void GyroAccel::calibrate()
         {
             Serial.println("Calibration not done");
         }
-        delay(100);
     }
 }
 

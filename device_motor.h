@@ -35,13 +35,12 @@ public:
     GyroAccel *getGyroAccel(void);
     void turn(double angle_diff, uint8_t speed);
     void straightLine(uint8_t speed, float targetYaw);
-
-private:
     Ultrasonic ultrasonic;
     Servo servo;
     GyroAccel gyroaccel;
     Maze maze;
 
+private:
     // Clamps the input speed between the MIN_SPEED and MAX_SPEED
     uint8_t normaliseSpeed(uint8_t speed);
 

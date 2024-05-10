@@ -15,8 +15,6 @@ void Motor::init()
     pinMode(PIN_MOTOR_STBY, OUTPUT);
 
     // Enable the gyroaccel
-    this->gyroaccel = GyroAccel();
-    this->gyroaccel.init();
 
     this->ultrasonic = Ultrasonic();
     this->ultrasonic.init();
@@ -24,76 +22,79 @@ void Motor::init()
     this->servo = Servo();
     this->servo.init();
 
+    this->gyroaccel = GyroAccel();
+    this->gyroaccel.init();
+
     this->maze = Maze();
     this->maze.init(6, 6);
 
     int cell_width = 30; // 30x30 cm
 
-    this->servo.setAngle(90);
-    int forwardDistance = this->ultrasonic.get_distance();
+    // this->servo.setAngle(90);
+    // int forwardDistance = this->ultrasonic.get_distance();
 
-    this->servo.setAngle(0);
-    int leftDistance = this->ultrasonic.get_distance();
+    // this->servo.setAngle(0);
+    // int leftDistance = this->ultrasonic.get_distance();
 
-    this->servo.setAngle(180);
-    int rightDistance = this->ultrasonic.get_distance();
+    // this->servo.setAngle(180);
+    // int rightDistance = this->ultrasonic.get_distance();
 
-    this->servo.setAngle(90);
+    // this->servo.setAngle(90);
 
-    Cell forwardCell = *maze.getCell(ceil(forwardDistance / cell_width), 0);
-    forwardCell.setTopWall(true);
-    maze.setCell(ceil(forwardDistance / cell_width), 0, &forwardCell);
+    // Cell forwardCell = *maze.getCell(ceil(forwardDistance / cell_width), 0);
+    // forwardCell.setTopWall(true);
+    // maze.setCell(ceil(forwardDistance / cell_width), 0, &forwardCell);
 
-    Cell leftCell = *maze.getCell(0, ceil(leftDistance / cell_width));
-    leftCell.setLeftWall(true);
-    maze.setCell(0, ceil(leftDistance / cell_width), &leftCell);
+    // Cell leftCell = *maze.getCell(0, ceil(leftDistance / cell_width));
+    // leftCell.setLeftWall(true);
+    // maze.setCell(0, ceil(leftDistance / cell_width), &leftCell);
 
-    Cell rightCell = *maze.getCell(0, ceil(rightDistance / cell_width));
-    rightCell.setRightWall(true);
-    maze.setCell(0, ceil(rightDistance / cell_width), &rightCell);
+    // Cell rightCell = *maze.getCell(0, ceil(rightDistance / cell_width));
+    // rightCell.setRightWall(true);
+    // maze.setCell(0, ceil(rightDistance / cell_width), &rightCell);
 
-    for (int i = 0; i < 6; i++)
-    {
-        for (int j = 0; j < 6; j++)
-        {
-            Cell currentCell = *maze.getCell(i, j);
-            currentCell.setVal(i * 6 + j);
-            Serial.print("Cell (");
-            Serial.print(i);
-            Serial.print(" ");
-            Serial.print(j);
-            Serial.print(" ");
-            Serial.print(currentCell.getVal());
-            Serial.println(") ");
-        }
-        Serial.println();
-    }
+    // for (int i = 0; i < 6; i++)
+    // {
+    //     for (int j = 0; j < 6; j++)
+    //     {
+    //         Cell currentCell = *maze.getCell(i, j);
+    //         currentCell.setVal(i * 6 + j);
+    //         Serial.print("Cell (");
+    //         Serial.print(i);
+    //         Serial.print(" ");
+    //         Serial.print(j);
+    //         Serial.print(" ");
+    //         Serial.print(currentCell.getVal());
+    //         Serial.println(") ");
+    //     }
+    //     Serial.println();
+    // }
 
-    Serial.println("---------------------------------------------------------");
+    // Serial.println("---------------------------------------------------------");
 
-    for (int i = 0; i < 6; i++)
-    {
-        for (int j = 0; j < 6 - 1; j++)
-        {
-            maze.setCell(i, j, maze.getCell(i, j + 1));
-        }
-    }
+    // for (int i = 0; i < 6; i++)
+    // {
+    //     for (int j = 0; j < 6 - 1; j++)
+    //     {
+    //         maze.setCell(i, j, maze.getCell(i, j + 1));
+    //     }
+    // }
 
-    for (int i = 0; i < 6; i++)
-    {
-        for (int j = 0; j < 6; j++)
-        {
-            Cell currentCell = *maze.getCell(i, j);
-            Serial.print("Cell (");
-            Serial.print(i);
-            Serial.print(" ");
-            Serial.print(j);
-            Serial.print(" ");
-            Serial.print(currentCell.getVal());
-            Serial.println(") ");
-        }
-        Serial.println();
-    }
+    // for (int i = 0; i < 6; i++)
+    // {
+    //     for (int j = 0; j < 6; j++)
+    //     {
+    //         Cell currentCell = *maze.getCell(i, j);
+    //         Serial.print("Cell (");
+    //         Serial.print(i);
+    //         Serial.print(" ");
+    //         Serial.print(j);
+    //         Serial.print(" ");
+    //         Serial.print(currentCell.getVal());
+    //         Serial.println(") ");
+    //     }
+    //     Serial.println();
+    // }
 }
 
 /**
@@ -270,30 +271,30 @@ void Motor::turn(double angle, uint8_t speed)
         current_rotate_direction = LEFT;
     }
 
-    Serial.println("Turning");
-    Serial.println(angle);
-    Serial.println(current_angle);
-    Serial.println(differenceFinale);
-    Serial.println(difference_plus);
-    Serial.println(difference_minus);
+    // Serial.println("Turning");
+    // Serial.println(angle);
+    // Serial.println(current_angle);
+    // Serial.println(differenceFinale);
+    // Serial.println(difference_plus);
+    // Serial.println(difference_minus);
 
     uint16_t ind = 0;
 
     uint8_t new_speed = speed;
     Direction old_rotate_direction = current_rotate_direction;
     float overflow_angle = 0;
-    while (!this->gyroaccel.areAnglesEqual(angle, current_angle, 4))
+    while (!this->gyroaccel.areAnglesEqual(angle, current_angle, 0.5))
     {
         double difference_plus = fmod((angle - current_angle + 360.0), 360.0);
         double difference_minus = fmod((current_angle - angle + 360.0), 360.0);
         double differenceFinale = min(difference_plus, difference_minus);
 
-        Serial.println("Turning");
-        Serial.println(angle);
-        Serial.println(current_angle);
-        Serial.println(differenceFinale);
-        Serial.println(difference_plus);
-        Serial.println(difference_minus);
+        // Serial.println("Turning");
+        // Serial.println(angle);
+        // Serial.println(current_angle);
+        // Serial.println(differenceFinale);
+        // Serial.println(difference_plus);
+        // Serial.println(difference_minus);
         Direction old_current_rotate_direction = current_rotate_direction;
 
         if (differenceFinale < 90)
@@ -338,7 +339,6 @@ void Motor::turn(double angle, uint8_t speed)
  */
 void Motor::straightLine(uint8_t speed, float targetYaw)
 {
-    targetYaw = 0;
     unsigned long lastTime = millis();
     // Adjusted PID constants
     const float Kp = 6.2f; // Proportional gain
@@ -355,7 +355,7 @@ void Motor::straightLine(uint8_t speed, float targetYaw)
     const float integralMax = 1.0f;
     const float integralMin = -1.0f;
 
-    while (true)
+    while (this->ultrasonic.get_distance() > 6)
     {
         unsigned long currentTime = millis();
         const int delta = currentTime - lastTime;
@@ -407,11 +407,6 @@ void Motor::straightLine(uint8_t speed, float targetYaw)
         // Serial.println(rightSpeed);
 
         this->move(FORWARDS, leftSpeed, rightSpeed);
-        if (this->ultrasonic.get_distance() < 20)
-        {
-            this->turn(270, 50);
-            this->stop();
-            break;
-        }
     }
+    this->stop();
 }
