@@ -338,10 +338,11 @@ void Motor::turn(double angle, uint8_t speed)
  */
 void Motor::straightLine(uint8_t speed, float targetYaw)
 {
+    targetYaw = 0;
     unsigned long lastTime = millis();
     // Adjusted PID constants
     const float Kp = 6.2f; // Proportional gain
-    const float Ki = 0.4f; // Integral gain
+    const float Ki = 0.5f; // Integral gain
     const float Kd = 1.0f; // Derivative gain
 
     const int8_t maxSpeed = 50; // Maximum speed
@@ -351,9 +352,8 @@ void Motor::straightLine(uint8_t speed, float targetYaw)
     float derivativeYaw = 0.0f;
     float previousYaw = 0.0f;
 
-    // Integral windup guard
-    const float integralMax = 5.0f;
-    const float integralMin = -5.0f;
+    const float integralMax = 1.0f;
+    const float integralMin = -1.0f;
 
     while (true)
     {
@@ -363,18 +363,11 @@ void Motor::straightLine(uint8_t speed, float targetYaw)
 
         float roll, pitch, currentYaw;
         this->gyroaccel.getRotation(&roll, &pitch, &currentYaw);
-        // Serial.println(currentYaw);
-        // Calculate error in yaw
-        errorYaw = (int)this->gyroaccel.getAnglesDiff(currentYaw, targetYaw);
-        // Serial.print(currentYaw);
-        // Serial.print(" | ");
-        // Serial.print(targetYaw);
-        // Serial.print(" | ");
-        // Serial.println(errorYaw);
+        errorYaw = this->gyroaccel.getAnglesDiff(currentYaw, targetYaw);
+        Serial.print("errorYaw: ");
+        Serial.println(errorYaw);
 
-        // Calculate integral of error with windup guard
         integralYaw += errorYaw * delta;
-        // integralYaw = constrain(integralYaw, integralMin, integralMax);
         if (integralYaw > integralMax)
         {
             integralYaw = integralMax;
@@ -384,17 +377,12 @@ void Motor::straightLine(uint8_t speed, float targetYaw)
             integralYaw = integralMin;
         }
 
-        // Calculate derivative of error based on measurement
         derivativeYaw = this->gyroaccel.getAnglesDiff(currentYaw, previousYaw) / delta;
 
-        // Update previousYaw for next iteration
         previousYaw = currentYaw;
 
-        // Calculate PID output with saturation
-        float pidOutput = Kp * errorYaw + Ki * integralYaw + Kd * derivativeYaw;
-        // pidOutput = constrain(pidOutput, -maxSpeed, maxSpeed);
+        float pidOutput = -Kp * errorYaw - Ki * integralYaw - Kd * derivativeYaw;
 
-        // Adjust motor speed
         int8_t leftSpeed = speed + pidOutput;
         if (leftSpeed > maxSpeed)
         {
@@ -413,12 +401,17 @@ void Motor::straightLine(uint8_t speed, float targetYaw)
         {
             rightSpeed = -maxSpeed;
         }
-        Serial.print("leftSpeed: ");
-        Serial.println(leftSpeed);
-        Serial.print("rightSpeed: ");
-        Serial.println(rightSpeed);
+        // Serial.print("leftSpeed: ");
+        // Serial.println(leftSpeed);
+        // Serial.print("rightSpeed: ");
+        // Serial.println(rightSpeed);
 
-        // Move the car with adjusted speed and steering direction
         this->move(FORWARDS, leftSpeed, rightSpeed);
+        if (this->ultrasonic.get_distance() < 20)
+        {
+            this->turn(270, 50);
+            this->stop();
+            break;
+        }
     }
 }
