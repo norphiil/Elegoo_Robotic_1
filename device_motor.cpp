@@ -63,7 +63,7 @@ void Motor::init()
             {
                 currentCell.setIsStart(true);
             }
-            if (i == 3 && j == 2)
+            if (i == 3 && j == 4)
             {
                 currentCell.setIsGoal(true);
             }
@@ -127,12 +127,12 @@ void Motor::init()
             if (i == 3 && j == 1)
             {
                 maze.setTopWall(i, j, true);
-                maze.setLeftWall(i, j, true);
+                // maze.setLeftWall(i, j, true);
             }
             if (i == 3 && j == 2)
             {
                 maze.setBottomWall(i, j, true);
-                maze.setLeftWall(i, j, true);
+                // maze.setLeftWall(i, j, true);
             }
             if (i == 3 && j == 3)
             {

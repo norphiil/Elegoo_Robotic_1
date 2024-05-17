@@ -32,7 +32,7 @@ public:
     void shiftLeft(void);
     void shiftRight(void);
     void display(void);
-    void floodFill(int startRow, int startCol, int newValue);
+    void floodFill(int startRow, int startCol, int newValue, int lastDir);
     void floodFillTwice();
     void setLeftWall(int row, int col, bool wall);
     void setRightWall(int row, int col, bool wall);

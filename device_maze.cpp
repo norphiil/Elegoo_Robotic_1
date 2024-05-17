@@ -149,7 +149,7 @@ void Maze::print(void)
     }
 }
 
-void Maze::floodFill(int row, int col, int newVal)
+void Maze::floodFill(int row, int col, int newVal, int lastDir)
 {
     if (this->maze[row][col].getVal() != 0 && this->maze[row][col].getVal() < newVal)
     {
@@ -158,22 +158,31 @@ void Maze::floodFill(int row, int col, int newVal)
     // Replace the value at current cell
     this->maze[row][col].setVal(newVal);
 
+    int cost = 1;
     // Recur for north, east, south, and west, checking for walls
     if (!this->maze[row][col].getTopWall())
     {
-        this->floodFill(row - 1, col, newVal + 1); // North
+        if (lastDir != 1 && lastDir != 0)
+            cost = 2;
+        this->floodFill(row - 1, col, newVal + cost, 1); // North
     }
     if (!this->maze[row][col].getBottomWall())
     {
-        this->floodFill(row + 1, col, newVal + 1); // South
+        if (lastDir != 2 && lastDir != 0)
+            cost = 2;
+        this->floodFill(row + 1, col, newVal + cost, 2); // South
     }
     if (!this->maze[row][col].getLeftWall())
     {
-        this->floodFill(row, col - 1, newVal + 1); // West
+        if (lastDir != 3 && lastDir != 0)
+            cost = 2;
+        this->floodFill(row, col - 1, newVal + cost, 3); // West
     }
     if (!this->maze[row][col].getRightWall())
     {
-        this->floodFill(row, col + 1, newVal + 1); // East
+        if (lastDir != 4 && lastDir != 0)
+            cost = 2;
+        this->floodFill(row, col + 1, newVal + cost, 4); // East
     }
 }
 
@@ -185,8 +194,8 @@ void Maze::floodFillTwice()
     this->getStartCoord(&startRow, &startCol);
     int goalRow, goalCol;
     this->getGoalCoord(&goalRow, &goalCol);
-    tempFirstMaze->floodFill(startRow, startCol, 1);
-    tempSecondMaze->floodFill(goalRow, goalCol, 1);
+    tempFirstMaze->floodFill(startRow, startCol, 1, 0);
+    tempSecondMaze->floodFill(goalRow, goalCol, 1, 0);
     for (int i = 0; i < this->rows; ++i)
     {
         for (int j = 0; j < this->cols; ++j)
