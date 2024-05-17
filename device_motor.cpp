@@ -16,14 +16,15 @@ void Motor::init()
 
     // Enable the gyroaccel
 
-    this->ultrasonic = Ultrasonic();
-    this->ultrasonic.init();
+    // this->ultrasonic = Ultrasonic();
+    // this->ultrasonic.init();
 
     this->servo = Servo();
     this->servo.init();
+    this->servo.test();
 
-    this->gyroaccel = GyroAccel();
-    this->gyroaccel.init();
+    // this->gyroaccel = GyroAccel();
+    // this->gyroaccel.init();
 
     this->maze = Maze();
     this->maze.init(6, 6);
@@ -53,48 +54,110 @@ void Motor::init()
     // rightCell.setRightWall(true);
     // maze.setCell(0, ceil(rightDistance / cell_width), &rightCell);
 
-    // for (int i = 0; i < 6; i++)
-    // {
-    //     for (int j = 0; j < 6; j++)
-    //     {
-    //         Cell currentCell = *maze.getCell(i, j);
-    //         currentCell.setVal(i * 6 + j);
-    //         Serial.print("Cell (");
-    //         Serial.print(i);
-    //         Serial.print(" ");
-    //         Serial.print(j);
-    //         Serial.print(" ");
-    //         Serial.print(currentCell.getVal());
-    //         Serial.println(") ");
-    //     }
-    //     Serial.println();
-    // }
+    for (int i = 0; i < 6; i++)
+    {
+        for (int j = 0; j < 6; j++)
+        {
+            Cell currentCell = *maze.getCell(i, j);
+            if (i == 0 && j == 3)
+            {
+                currentCell.setIsStart(true);
+            }
+            if (i == 3 && j == 2)
+            {
+                currentCell.setIsGoal(true);
+            }
+            maze.setCell(i, j, &currentCell);
+            if (i == 0)
+            {
+                maze.setTopWall(i, j, true);
+            }
+            if (i == 5)
+            {
+                maze.setBottomWall(i, j, true);
+            }
+            if (j == 0)
+            {
+                maze.setLeftWall(i, j, true);
+            }
+            if (j == 5)
+            {
+                maze.setRightWall(i, j, true);
+            }
 
-    // Serial.println("---------------------------------------------------------");
-
-    // for (int i = 0; i < 6; i++)
-    // {
-    //     for (int j = 0; j < 6 - 1; j++)
-    //     {
-    //         maze.setCell(i, j, maze.getCell(i, j + 1));
-    //     }
-    // }
-
-    // for (int i = 0; i < 6; i++)
-    // {
-    //     for (int j = 0; j < 6; j++)
-    //     {
-    //         Cell currentCell = *maze.getCell(i, j);
-    //         Serial.print("Cell (");
-    //         Serial.print(i);
-    //         Serial.print(" ");
-    //         Serial.print(j);
-    //         Serial.print(" ");
-    //         Serial.print(currentCell.getVal());
-    //         Serial.println(") ");
-    //     }
-    //     Serial.println();
-    // }
+            if (i == 1 && j == 1)
+            {
+                maze.setTopWall(i, j, true);
+                maze.setRightWall(i, j, true);
+            }
+            if (i == 1 && j == 2)
+            {
+                maze.setTopWall(i, j, true);
+                maze.setLeftWall(i, j, true);
+            }
+            if (i == 1 && j == 3)
+            {
+                maze.setTopWall(i, j, true);
+                maze.setBottomWall(i, j, true);
+            }
+            if (i == 1 && j == 4)
+            {
+                maze.setTopWall(i, j, true);
+                maze.setBottomWall(i, j, true);
+            }
+            if (i == 1 && j == 5)
+            {
+                maze.setBottomWall(i, j, true);
+            }
+            if (i == 2 && j == 1)
+            {
+                maze.setBottomWall(i, j, true);
+                maze.setRightWall(i, j, true);
+            }
+            if (i == 2 && j == 2)
+            {
+                maze.setBottomWall(i, j, true);
+                maze.setLeftWall(i, j, true);
+            }
+            if (i == 2 && j == 3)
+            {
+                maze.setBottomWall(i, j, true);
+                // maze.setRightWall(i, j, true);
+            }
+            if (i == 3 && j == 1)
+            {
+                maze.setTopWall(i, j, true);
+                maze.setLeftWall(i, j, true);
+            }
+            if (i == 3 && j == 2)
+            {
+                maze.setBottomWall(i, j, true);
+                maze.setLeftWall(i, j, true);
+            }
+            if (i == 3 && j == 3)
+            {
+                maze.setBottomWall(i, j, true);
+                // maze.setRightWall(i, j, true);
+            }
+            if (i == 4 && j == 1)
+            {
+                maze.setTopWall(i, j, true);
+                maze.setRightWall(i, j, true);
+            }
+            if (i == 4 && j == 2)
+            {
+                maze.setTopWall(i, j, true);
+                maze.setLeftWall(i, j, true);
+            }
+            if (i == 4 && j == 3)
+            {
+                maze.setTopWall(i, j, true);
+                maze.setRightWall(i, j, true);
+            }
+        }
+    }
+    maze.floodFillTwice();
+    maze.display();
 }
 
 /**

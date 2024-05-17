@@ -10,30 +10,40 @@ void Servo::init()
     pinMode(PIN_SERVO, OUTPUT); // Set servo pin as output
     delay(1000);
     this->angle = 90;
-    this->setAngleBrute(90);
+    this->setAngle(90);
 }
 
 /**
  * Turns the servo motor to a given angle (0-180)
  */
-void Servo::setAngle(uint8_t new_angle)
+void Servo::setAngle(uint8_t new_angle, uint8_t step = 2)
 {
-    if (this->angle - new_angle > 0)
+    if (this->angle > new_angle)
     {
-        for (int i = this->angle; i > new_angle; i--)
+        for (int i = this->angle; i > new_angle; i -= step)
         {
+            if (i - step < new_angle)
+            {
+                i = new_angle;
+            }
             this->setAngleBrute(i);
-            // delay(15);
+            // delay(15); // Assuming you want the delay back
         }
     }
     else
     {
-        for (int i = this->angle; i < new_angle; i++)
+        for (int i = this->angle; i < new_angle; i += step)
         {
+            if (i + step > new_angle)
+            {
+                i = new_angle;
+            }
             this->setAngleBrute(i);
-            // delay(15);
+            // delay(15); // Assuming you want the delay back
         }
     }
+    // Set the final angle to ensure it's exactly the new_angle
+    this->setAngleBrute(new_angle);
 }
 
 /**

@@ -47,29 +47,29 @@ void setup()
 
 void loop()
 {
-  float roll, pitch, currentYaw;
-  motor.getGyroAccel()->getRotation(&roll, &pitch, &currentYaw);
-  motor.straightLine(50, currentYaw);
-  delay(10);
-  motor.servo.setAngle(0);
-  uint16_t left_distance = motor.ultrasonic.get_distance();
-  motor.servo.setAngle(180);
-  uint16_t right_distance = motor.ultrasonic.get_distance();
-  motor.servo.setAngle(90);
-  motor.getGyroAccel()->getRotation(&roll, &pitch, &currentYaw);
-  if (abs(left_distance - right_distance) < 20)
-  {
-    motor.turn(180, 35);
-    motor.stop();
-  }
-  else if (left_distance - right_distance > 0)
-  {
-    motor.turn(270, 35);
-    motor.stop();
-  }
-  else if (right_distance - left_distance > 0)
-  {
-    motor.turn(90, 35);
-    motor.stop();
-  }
+  // float roll, pitch, currentYaw;
+  // motor.getGyroAccel()->getRotation(&roll, &pitch, &currentYaw);
+  // motor.straightLine(50, currentYaw);
+  // delay(10);
+  // motor.servo.setAngle(0);
+  // uint16_t left_distance = motor.ultrasonic.get_distance();
+  // motor.servo.setAngle(180);
+  // uint16_t right_distance = motor.ultrasonic.get_distance();
+  // motor.servo.setAngle(90);
+  // motor.getGyroAccel()->getRotation(&roll, &pitch, &currentYaw);
+  // if (abs(left_distance - right_distance) < 20)
+  // {
+  //   motor.turn(180, 35);
+  //   motor.stop();
+  // }
+  // else if (left_distance - right_distance > 0)
+  // {
+  //   motor.turn(270, 35);
+  //   motor.stop();
+  // }
+  // else if (right_distance - left_distance > 0)
+  // {
+  //   motor.turn(90, 35);
+  //   motor.stop();
+  // }
 }
