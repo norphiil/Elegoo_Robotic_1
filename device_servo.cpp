@@ -8,7 +8,6 @@ void Servo::init()
     Serial.println("Servo init");
     // Servo motor
     pinMode(PIN_SERVO, OUTPUT); // Set servo pin as output
-    delay(1000);
     this->angle = 90;
     this->setAngle(90);
 }
@@ -27,7 +26,7 @@ void Servo::setAngle(uint8_t new_angle, uint8_t step = 2)
                 i = new_angle;
             }
             this->setAngleBrute(i);
-            // delay(15); // Assuming you want the delay back
+            delay(1); // Assuming you want the delay back
         }
     }
     else
@@ -39,7 +38,7 @@ void Servo::setAngle(uint8_t new_angle, uint8_t step = 2)
                 i = new_angle;
             }
             this->setAngleBrute(i);
-            // delay(15); // Assuming you want the delay back
+            delay(1); // Assuming you want the delay back
         }
     }
     // Set the final angle to ensure it's exactly the new_angle

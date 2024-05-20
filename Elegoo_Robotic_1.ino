@@ -43,13 +43,13 @@ void setup()
   // motor.getGyroAccel()->getRotation(&roll, &pitch, &currentYaw);
   // Serial.print("After: ");
   // Serial.println(currentYaw);
+  motor.straightLine(50, 10);
 }
 
 void loop()
 {
-  // float roll, pitch, currentYaw;
-  // motor.getGyroAccel()->getRotation(&roll, &pitch, &currentYaw);
-  // motor.straightLine(50, currentYaw);
+  float roll, pitch, currentYaw;
+  motor.getGyroAccel()->getRotation(&roll, &pitch, &currentYaw);
   // delay(10);
   // motor.servo.setAngle(0);
   // uint16_t left_distance = motor.ultrasonic.get_distance();

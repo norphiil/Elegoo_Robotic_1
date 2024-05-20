@@ -16,15 +16,14 @@ void Motor::init()
 
     // Enable the gyroaccel
 
-    // this->ultrasonic = Ultrasonic();
-    // this->ultrasonic.init();
+    this->ultrasonic = Ultrasonic();
+    this->ultrasonic.init();
 
     this->servo = Servo();
     this->servo.init();
-    this->servo.test();
 
-    // this->gyroaccel = GyroAccel();
-    // this->gyroaccel.init();
+    this->gyroaccel = GyroAccel();
+    this->gyroaccel.init();
 
     this->maze = Maze();
     this->maze.init(6, 6);
@@ -398,9 +397,9 @@ void Motor::turn(double angle, uint8_t speed)
 /**
  * Moves the robot in a straight line at a given speed
  * @param speed The speed at which to move (0-255 range)
- * @param targetYaw The target yaw angle of the robot
+ * @param targetDist The target dist of the robot
  */
-void Motor::straightLine(uint8_t speed, float targetYaw)
+void Motor::straightLine(uint8_t speed, float targetDist)
 {
     unsigned long lastTime = millis();
     // Adjusted PID constants
@@ -410,41 +409,46 @@ void Motor::straightLine(uint8_t speed, float targetYaw)
 
     const int8_t maxSpeed = 50; // Maximum speed
 
-    float errorYaw = 0.0f;
-    float integralYaw = 0.0f;
-    float derivativeYaw = 0.0f;
-    float previousYaw = 0.0f;
+    float errorDist = 0.0f;
+    float integralDist = 0.0f;
+    float derivativeDist = 0.0f;
+    float previousDist = 0.0f;
 
     const float integralMax = 1.0f;
     const float integralMin = -1.0f;
 
-    while (this->ultrasonic.get_distance() > 6)
+    this->servo.setAngle(90);
+    uint16_t forwardDistance = this->ultrasonic.get_distance();
+
+    while (forwardDistance > 2)
     {
+        this->servo.setAngle(180);
+        uint16_t leftDistance = this->ultrasonic.get_distance();
+
         unsigned long currentTime = millis();
         const int delta = currentTime - lastTime;
         lastTime = currentTime;
 
         float roll, pitch, currentYaw;
         this->gyroaccel.getRotation(&roll, &pitch, &currentYaw);
-        errorYaw = this->gyroaccel.getAnglesDiff(currentYaw, targetYaw);
-        Serial.print("errorYaw: ");
-        Serial.println(errorYaw);
 
-        integralYaw += errorYaw * delta;
-        if (integralYaw > integralMax)
+        errorDist = targetDist - leftDistance;
+        Serial.println(errorDist);
+        integralDist += errorDist * delta;
+        if (integralDist > integralMax)
         {
-            integralYaw = integralMax;
+            integralDist = integralMax;
         }
-        else if (integralYaw < integralMin)
+        else if (integralDist < integralMin)
         {
-            integralYaw = integralMin;
+            integralDist = integralMin;
         }
 
-        derivativeYaw = this->gyroaccel.getAnglesDiff(currentYaw, previousYaw) / delta;
+        derivativeDist = (targetDist - previousDist) / delta;
 
-        previousYaw = currentYaw;
+        previousDist = leftDistance;
 
-        float pidOutput = -Kp * errorYaw - Ki * integralYaw - Kd * derivativeYaw;
+        float pidOutput = -Kp * errorDist - Ki * integralDist - Kd * derivativeDist;
 
         int8_t leftSpeed = speed + pidOutput;
         if (leftSpeed > maxSpeed)
@@ -464,12 +468,11 @@ void Motor::straightLine(uint8_t speed, float targetYaw)
         {
             rightSpeed = -maxSpeed;
         }
-        // Serial.print("leftSpeed: ");
-        // Serial.println(leftSpeed);
-        // Serial.print("rightSpeed: ");
-        // Serial.println(rightSpeed);
 
         this->move(FORWARDS, leftSpeed, rightSpeed);
+
+        this->servo.setAngle(90);
+        uint16_t forwardDistance = this->ultrasonic.get_distance();
     }
     this->stop();
 }
