@@ -75,12 +75,10 @@ void GyroAccel::calibrate()
  */
 double GyroAccel::getAnglesDiff(double angle1, double angle2)
 {
-    double difference = fmod((angle1 - angle2 + 360.0), 360.0);
-    if (difference > 180.0)
-    {
-        difference -= 360.0; // This adjusts the difference to be negative if it's a left turn
-    }
-    return difference; // Positive if to the right, negative if to the left
+    double difference_plus = ((int)angle1 - (int)angle2 + 360) % 360;
+    double difference_minus = ((int)angle2 - (int)angle1 + 360) % 360;
+    double differenceFinale = min(difference_plus, difference_minus);
+    return differenceFinale;
 }
 
 /**
@@ -118,7 +116,7 @@ void GyroAccel::IMU_error()
         ayError += (ay);
         azError += (az);
         c++;
-        delay(1);
+        delay(2);
         // delay(2000 / nb);
     }
     this->AcXError = ((float)axError) / (float)nb;
@@ -139,7 +137,7 @@ void GyroAccel::IMU_error()
 
         c++;
         // delay(2000 / nb);
-        delay(1);
+        delay(2);
     }
     this->GyXError = ((float)gxError) / (float)nb;
     this->GyYError = ((float)gyError) / (float)nb;

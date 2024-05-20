@@ -5,7 +5,7 @@ class Servo
 public:
     void init(void);
     void test(void);
-    void setAngle(uint8_t new_angle, uint8_t step = 2);
+    void setAngle(uint8_t new_angle);
     // uint8_t find_way(Ultrasonic ultrasonic);
 
 private:

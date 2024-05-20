@@ -13,7 +13,7 @@ void Ultrasonic::init()
     pinMode(PIN_TRIG, OUTPUT);
 }
 
-uint16_t Ultrasonic::get_distance()
+float Ultrasonic::get_distance()
 {
     digitalWrite(PIN_TRIG, LOW); // Preparing to send the ultrasonic pulse
     delayMicroseconds(2);        // Waiting for above pin to change

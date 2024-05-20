@@ -8,7 +8,7 @@ public:
     void test(void);
     // void get(uint16_t *get);
     // void calculate_field_of_view(Servo servo);
-    uint16_t get_distance(void);
+    float get_distance(void);
 
 private:
     // unsigned int microseconds_to_cm(unsigned int microseconds);
